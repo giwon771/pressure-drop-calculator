@@ -12,41 +12,26 @@ def load_json(filename):
         return None
 
 def interpolate(temp, properties, key):
+    # properties가 리스트인 경우 (현재 JSON 구조)
     try:
-        # 1. 만약 properties가 리스트 안에 들어있다면 첫 번째 요소를 사용
-        if isinstance(properties, list):
-            properties = properties[0]
-            
-        # 2. 온도 키값들을 가져와서 숫자 리스트로 변환
-        # (문자열 "20"이든 숫자 20이든 모두 float으로 변환)
-        raw_keys = list(properties.keys())
-        temps = sorted([float(k) for k in raw_keys])
+        # 온도 기준 정렬
+        sorted_props = sorted(properties, key=lambda x: x['temp'])
+        temps = [float(p['temp']) for p in sorted_props]
         
-        # 3. 입력 온도가 범위를 벗어날 경우 최댓값/최솟값 반환
-        if temp <= temps[0]:
-            target_key = next(k for k in raw_keys if float(k) == temps[0])
-            return properties[target_key][key]
-        if temp >= temps[-1]:
-            target_key = next(k for k in raw_keys if float(k) == temps[-1])
-            return properties[target_key][key]
+        # 범위 밖 처리
+        if temp <= temps[0]: return sorted_props[0][key]
+        if temp >= temps[-1]: return sorted_props[-1][key]
         
-        # 4. 선형 보간 수행
-        for i in range(len(temps) - 1):
+        # 선형 보간
+        for i in range(len(temps)-1):
             t1, t2 = temps[i], temps[i+1]
             if t1 <= temp <= t2:
-                # 실제 딕셔너리에서 해당 숫자와 일치하는 키를 다시 찾음
-                k1 = next(k for k in raw_keys if float(k) == t1)
-                k2 = next(k for k in raw_keys if float(k) == t2)
-                
-                v1 = properties[k1][key]
-                v2 = properties[k2][key]
-                
+                v1 = sorted_props[i][key]
+                v2 = sorted_props[i+1][key]
                 return v1 + (v2 - v1) * (temp - t1) / (t2 - t1)
-                
     except Exception as e:
-        # 에러 발생 시 디버깅을 위해 0을 반환하거나 로그 출력
-        return 0.001 # 아주 작은 값 반환
-    return 0
+        return 0.0
+    return 0.0
 
 # --- 페이지 설정 ---
 st.set_page_config(page_title="공학용 유체 설계 시스템 v8.0", layout="wide")
