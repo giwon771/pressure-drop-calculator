@@ -1,5 +1,306 @@
-<Solution>
-  <Project Path="FluidPressureCalc/FluidPressureCalc.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="15c539de-ccc6-4698-8b5b-330a03e35f98">
-    <Build Project="false" />
-  </Project>
-</Solution>
+import tkinter as tk
+from tkinter import ttk, messagebox
+import json
+import math
+import os
+
+# --- 1. 데이터 로드 및 보간법 함수 (메인 로직 위) ---
+
+def load_json(filename):
+    """JSON 파일을 읽어오는 공용 함수"""
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(base_path, filename)
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+
+def interpolate(temp, data_list, key):
+    """온도별 물성치 선형 보간 함수"""
+    data_list.sort(key=lambda x: x['temp'])
+    if temp <= data_list[0]['temp']: return data_list[0][key]
+    if temp >= data_list[-1]['temp']: return data_list[-1][key]
+    for i in range(len(data_list) - 1):
+        if data_list[i]['temp'] <= temp <= data_list[i+1]['temp']:
+            t1, t2 = data_list[i]['temp'], data_list[i+1]['temp']
+            v1, v2 = data_list[i][key], data_list[i+1][key]
+            # 선형 보간 공식 적용
+            return v1 + (temp - t1) * (v2 - v1) / (t2 - t1)
+
+def on_pipe_select(event=None):
+    """배관 규격 선택 시 안지름(ID)을 자동 입력하는 함수"""
+    p_db = load_json('pipe_db.json')
+    if not p_db: return
+    
+    try:
+        selected_nps = combo_nps.get()
+        selected_sch = combo_sch.get()
+        
+        # DB에서 선택된 규격 찾기
+        pipe = next(p for p in p_db['pipe_standards'] if p['nps'] == selected_nps)
+        inner_diameter = pipe['schedules'][selected_sch]['id']
+           
+
+        # UI 업데이트
+        entry_D.delete(0, tk.END)
+        entry_D.insert(0, str(inner_diameter))
+        unit_D.set("mm")
+    except Exception:
+        pass
+
+# --- 2. 메인 계산 로직 ---
+
+def calculate():
+    try:
+        f_db = load_json('fluids_db.json')
+        fluid_name = combo_fluid.get()
+        target_temp = 20.0 if var_fix_temp.get() else float(entry_temp.get())
+
+        fluid_data = next(item for item in f_db['fluids'] if item['name'] == fluid_name)
+        rho = interpolate(target_temp, fluid_data['properties'], 'rho')
+        mu = interpolate(target_temp, fluid_data['properties'], 'mu')
+
+        # [1. 관 직경 변환]
+        d_input = float(entry_D.get())
+        D = d_input / 1000 if unit_D.get() == "mm" else (d_input * 0.0254 if unit_D.get() == "inch" else d_input)
+        area = math.pi * (D**2) / 4  # 단면적 (m^2)
+
+        # [2. 유량/유속 변환 로직 - BTU/hr 단위 지원 추가]
+        raw_v_q = float(entry_v.get())
+        unit_type = unit_v.get()
+        
+        v_calc_process = "" 
+        
+        if unit_type == "m/s":
+            v = raw_v_q
+            v_calc_process = f"입력값 유속(v) 그대로 사용: {v:.4f} m/s"
+        elif unit_type == "m³/s":
+            v = raw_v_q / area
+            v_calc_process = f"Q({raw_v_q}) / Area({area:.6f}) = {v:.4f} m/s"
+        elif unit_type == "L/min":
+            q_m3s = raw_v_q / 60000
+            v = q_m3s / area
+            v_calc_process = f"Q({raw_v_q} L/min) / Area = {v:.4f} m/s"
+        elif unit_type == "L/s":
+            q_m3s = raw_v_q / 1000
+            v = q_m3s / area
+            v_calc_process = f"Q({raw_v_q} L/s) / Area = {v:.4f} m/s"
+        elif unit_type == "BTU/hr (Water)":
+            # BTU/hr를 m³/s로 변환 (ΔT=1°F, 물의 비열 기준 표준 환산)
+            # 공식: GPM = BTU/hr / (500 * ΔT) -> 1 GPM = 6.309e-5 m³/s
+            q_gpm = raw_v_q / 500  # ΔT=1 가정
+            q_m3s = q_gpm * 0.00006309
+            v = q_m3s / area
+            v_calc_process = f"BTU/hr → {q_gpm:.4f} GPM → {v:.4f} m/s (ΔT=1°F 기준)"
+
+        l_input = float(entry_L.get())
+        L = l_input * 1000 if unit_L.get() == "km" else l_input
+
+        # [Step 1 & 2: Re 및 흐름 판정]
+        re = (rho * v * D) / mu
+
+        if re <= 2300:
+            f = 64 / re
+            flow_type = "층류 (Laminar Flow)"
+            f_formula = "f = 64 / Re"
+            status_color = "blue"
+            
+        elif 2300 < re < 4000:
+            f = 0.316 * (re**-0.25) 
+            flow_type = "⚠️ 천이 영역 (Transition Region)"
+            f_formula = "Blasius Eq. (보수적 적용)"
+            status_color = "orange"
+            # [추가] 천이 영역 알림창 팝업
+            messagebox.showwarning("흐름 상태 경고", 
+                f"Reynolds Number({re:.1f})가 천이 영역(2300~4000)에 도달했습니다.\n유동이 불안정하므로 설계를 재검토하십시오.")
+            
+        else:
+            f = 0.316 * (re**-0.25)
+            flow_type = "난류 (Turbulent Flow)"
+            f_formula = "Blasius Equation (Smooth Pipe)"
+            status_color = "red"
+
+        # [추가] UI 상단 상태 라벨 실시간 업데이트
+        try:
+            status_label.config(text=flow_type, fg=status_color)
+        except:
+            pass # 라벨이 없는 경우 대비
+
+        # [Step 3: 부차적 손실]
+        n_elbow = int(entry_elbow.get() or 0)
+        n_valve = int(entry_valve.get() or 0)
+        sum_k = (n_elbow * 0.9) + (n_valve * 0.2)
+        
+        # [Step 4: 최종 압력강하 산출]
+        dp_major = f * (L / D) * (rho * v**2 / 2)
+        dp_minor = sum_k * (rho * v**2 / 2)
+        dp_total = dp_major + dp_minor
+
+        # [4. 결과 리포트 출력 구성]
+        report = (
+            f"--- [상세 설계 계산 과정] ---\n\n"
+            f"Step 1. 관 규격 및 유동 분석\n"
+            f"   - 입력 관 안지름(D): {D:.4f} m\n"
+            f"   - 관 단면적(A): {area:.6e} m²\n"
+            f"   - 유속 산출 과정: {v_calc_process}\n"
+            f"   - 최종 유속(v): {v:.4f} m/s\n\n"
+            
+            f"Step 2. 물성 데이터 (기준 온도: {target_temp}°C)\n"
+            f"   - 밀도(ρ): {rho:.2f} kg/m³\n"
+            f"   - 점도(μ): {mu:.6f} Pa·s\n\n"
+            
+            f"Step 3. Reynolds Number (Re) 및 흐름 판정\n"
+            f"   - Re = (ρvD)/μ = ({rho:.1f} * {v:.2f} * {D:.4f}) / {mu:.6f}\n"
+            f"   - 결과 Re: {re:.1f}\n"
+            f"   - 흐름 상태: {flow_type}\n\n"
+            
+            f"Step 4. 마찰계수(f) 산정\n"
+            f"   - 적용 공식: {f_formula}\n"
+            f"   - 결과 f: {f:.4f}\n\n"
+            
+            f"Step 5. 최종 압력강하(ΔP) 산출\n"
+            f"   - 이송거리(L): {L:.1f} m\n"
+            f"   - 주손실(Major): {dp_major:.2f} Pa\n"
+            f"   - 부손실(Minor): {dp_minor:.2f} Pa\n"
+            f"   - 총 압력손실(Total ΔP): {dp_total:.2f} Pa\n"
+            f"   - (단위 변환: {dp_total/1000:.4f} kPa / {dp_total/101325:.4f} atm)"
+        )
+        
+        result_text.delete(1.0, tk.END)
+        result_text.insert(tk.END, report)
+
+    except Exception as e:
+        messagebox.showerror("오류", f"수치를 확인해주세요: {e}")
+
+# --- 3. UI 구성 (디자인 및 그룹화 반영) ---
+def set_placeholder(entry, text):
+    entry.insert(0, text)
+    entry.config(fg='grey')
+    def on_focus_in(event):
+        if entry.get() == text:
+            entry.delete(0, tk.END)
+            entry.config(fg='black')
+    def on_focus_in_clear(event): # 포커스 시 글자색 변경 보조
+        if entry.get() == text:
+            entry.delete(0, tk.END)
+            entry.config(fg='black')
+            
+    def on_focus_out(event):
+        if entry.get() == '':
+            entry.insert(0, text)
+            entry.config(fg='grey')
+            
+    entry.bind('<FocusIn>', on_focus_in)
+    entry.bind('<FocusOut>', on_focus_out)
+
+root = tk.Tk()
+root.title("Fluid Thermal System Designer v7.0")
+root.geometry("550x900") # 리포트가 길어질 수 있으니 세로 길이를 충분히 확보
+root.configure(bg="#F5F5F5") # 전체 배경색 설정
+
+# 메인 컨테이너: 전체 화면에 여백(Padding)을 줌
+main_frame = tk.Frame(root, bg="#F5F5F5", padx=20, pady=20)
+main_frame.pack(expand=True, fill="both")
+
+f_db = load_json('fluids_db.json')
+p_db = load_json('pipe_db.json')
+
+# [1] 유체 물성 설정 상자 (Section 1)
+group1 = ttk.LabelFrame(main_frame, text=" [1] 대상 유체 및 운전 온도 ", padding=10)
+group1.pack(fill="x", pady=5)
+
+combo_fluid = ttk.Combobox(group1, values=[f['name'] for f in f_db['fluids']] if f_db else ["Error"], state="readonly")
+combo_fluid.current(0)
+combo_fluid.pack(fill="x", pady=5)
+
+t_frame = tk.Frame(group1, bg="#F5F5F5") # 부모를 group1으로 설정
+t_frame.pack(fill="x")
+entry_temp = tk.Entry(t_frame, width=10)
+entry_temp.insert(0, "20")
+entry_temp.pack(side="left")
+tk.Label(t_frame, text=" °C", bg="#F5F5F5").pack(side="left")
+
+var_fix_temp = tk.BooleanVar()
+tk.Checkbutton(t_frame, text="상온 고정(20°C)", variable=var_fix_temp, bg="#F5F5F5").pack(side="right")
+
+
+# [2] 배관 규격 및 상세 수치 상자 (Section 2)
+group2 = ttk.LabelFrame(main_frame, text=" [2] 배관 규격 및 상세 수치 입력 ", padding=10)
+group2.pack(fill="x", pady=5)
+
+# 배관 표준 규격 선택 행
+pipe_sel_frame = tk.Frame(group2, bg="#F5F5F5")
+pipe_sel_frame.pack(fill="x", pady=5)
+combo_nps = ttk.Combobox(pipe_sel_frame, values=[p['nps'] for p in p_db['pipe_standards']] if p_db else [], width=12, state="readonly")
+combo_nps.set("NPS 선택")
+combo_nps.pack(side="left", padx=2)
+combo_sch = ttk.Combobox(pipe_sel_frame, values=["Sch 30", "Sch 40", "Sch 80", "Sch 160"], width=12, state="readonly")
+combo_sch.set("Sch 선택")
+combo_sch.pack(side="left", padx=2)
+
+combo_nps.bind("<<ComboboxSelected>>", on_pipe_select)
+combo_sch.bind("<<ComboboxSelected>>", on_pipe_select)
+
+# --- 수치 입력 및 단위 변환 (안지름, 유량, 길이) ---
+# (참고: set_placeholder 함수는 코드 상단에 정의되어 있어야 합니다)
+
+# 안지름 입력
+f_d = tk.Frame(group2, bg="#F5F5F5"); f_d.pack(fill="x", pady=2)
+entry_D = tk.Entry(f_d, width=20)
+set_placeholder(entry_D, "예: 52.48")
+entry_D.pack(side="left")
+unit_D = ttk.Combobox(f_d, values=["m", "mm", "inch"], width=7, state="readonly")
+unit_D.current(1); unit_D.pack(side="right")
+
+# 유속/유량 입력
+f_v = tk.Frame(group2, bg="#F5F5F5")
+f_v.pack(fill="x", pady=2)
+
+entry_v = tk.Entry(f_v, width=20)
+set_placeholder(entry_v, "예: 1.5(유속) 또는 0.01(유량)")
+entry_v.pack(side="left")
+
+# values 리스트에 "BTU/hr (Water)"를 추가합니다.
+unit_v = ttk.Combobox(f_v, values=["m/s", "m³/s", "L/min", "L/s", "BTU/hr (Water)"], width=15, state="readonly")
+unit_v.current(0)  # 기본값은 m/s
+unit_v.pack(side="right")
+
+tk.Label(group2, text="유동 속도(v) 또는 초/분당 유량(Q), 열부하(BTU)", fg="gray", font=("Arial", 8), bg="#F5F5F5").pack(anchor="e")
+
+# 직선 거리 입력
+f_l = tk.Frame(group2, bg="#F5F5F5"); f_l.pack(fill="x", pady=2)
+entry_L = tk.Entry(f_l, width=20)
+set_placeholder(entry_L, "예: 10 또는 1")
+entry_L.pack(side="left")
+unit_L = ttk.Combobox(f_l, values=["m", "km"], width=7, state="readonly")
+unit_L.current(0); unit_L.pack(side="right")
+
+# [상태 표시 라벨] - 기원님이 요청하신 천이 영역 색상 반영 부분
+status_frame = tk.Frame(group2, bg="#F5F5F5", pady=10)
+status_frame.pack(fill="x")
+tk.Label(status_frame, text="현재 흐름 상태:", bg="#F5F5F5", font=("Arial", 10, "bold")).pack(side="left")
+status_label = tk.Label(status_frame, text="대기 중", bg="#F5F5F5", fg="gray", font=("Arial", 10, "bold"))
+status_label.pack(side="left", padx=5)
+
+
+# [3] 부속품 상자 (Section 3)
+group3 = ttk.LabelFrame(main_frame, text=" [3] 부속품 개수 (부차적 손실) ", padding=10)
+group3.pack(fill="x", pady=5)
+
+f_m = tk.Frame(group3, bg="#F5F5F5"); f_m.pack(fill="x")
+entry_elbow = tk.Entry(f_m, width=8); entry_elbow.insert(0, "0"); entry_elbow.pack(side="left")
+tk.Label(f_m, text=" 엘보(90°)  ", bg="#F5F5F5").pack(side="left")
+entry_valve = tk.Entry(f_m, width=8); entry_valve.insert(0, "0"); entry_valve.pack(side="left")
+tk.Label(f_m, text=" 게이트밸브", bg="#F5F5F5").pack(side="left")
+
+
+# [4] 계산 실행 및 결과 출력
+btn_calc = tk.Button(main_frame, text="설계 분석 및 계산 실행", command=calculate, 
+                     bg="#2196F3", fg="white", font=("Arial", 12, "bold"), pady=10)
+btn_calc.pack(fill="x", pady=15)
+
+result_text = tk.Text(main_frame, height=18, font=("Consolas", 10), bg="#FFFFFF", padx=10, pady=10)
+result_text.pack(fill="both", expand=True)
+
+root.mainloop()
