@@ -1,28 +1,104 @@
 {
-  "fluids": [
-    {"name": "Acetone", "properties": [{"temp": 20, "rho": 787.0, "mu": 0.000316}]},
-    {"name": "Benzene", "properties": [{"temp": 20, "rho": 876.0, "mu": 0.000601}]},
-    {"name": "Carbon disulfide", "properties": [{"temp": 20, "rho": 1265.0, "mu": 0.000360}]},
-    {"name": "Carbon tetrachloride", "properties": [{"temp": 20, "rho": 1590.0, "mu": 0.000910}]},
-    {"name": "Castor oil", "properties": [{"temp": 20, "rho": 960.0, "mu": 0.650}]},
-    {"name": "Chloroform", "properties": [{"temp": 20, "rho": 1470.0, "mu": 0.000530}]},
-    {"name": "Decane", "properties": [{"temp": 20, "rho": 728.0, "mu": 0.000859}]},
-    {"name": "Ether", "properties": [{"temp": 20, "rho": 715.0, "mu": 0.000223}]},
-    {"name": "Ethyl alcohol", "properties": [{"temp": 20, "rho": 787.0, "mu": 0.001095}]},
-    {"name": "Ethylene glycol", "properties": [{"temp": 20, "rho": 1100.0, "mu": 0.0162}]},
-    {"name": "Glycerine", "properties": [{"temp": 20, "rho": 1263.0, "mu": 0.950}]},
-    {"name": "Heptane", "properties": [{"temp": 20, "rho": 681.0, "mu": 0.000376}]},
-    {"name": "Hexane", "properties": [{"temp": 20, "rho": 657.0, "mu": 0.000297}]},
-    {"name": "Kerosene", "properties": [{"temp": 20, "rho": 823.0, "mu": 0.00164}]},
-    {"name": "Linseed oil", "properties": [{"temp": 20, "rho": 930.0, "mu": 0.0331}]},
-    {"name": "Mercury", "properties": [{"temp": 20, "rho": 13600.0, "mu": 0.00153}]},
-    {"name": "Methyl alcohol", "properties": [{"temp": 20, "rho": 789.0, "mu": 0.00056}]},
-    {"name": "Octane", "properties": [{"temp": 20, "rho": 701.0, "mu": 0.00051}]},
-    {"name": "Propane", "properties": [{"temp": 20, "rho": 495.0, "mu": 0.00011}]},
-    {"name": "Propyl alcohol", "properties": [{"temp": 20, "rho": 802.0, "mu": 0.00192}]},
-    {"name": "Propylene", "properties": [{"temp": 20, "rho": 516.0, "mu": 0.00009}]},
-    {"name": "Propylene glycol", "properties": [{"temp": 20, "rho": 968.0, "mu": 0.042}]},
-    {"name": "Turpentine", "properties": [{"temp": 20, "rho": 870.0, "mu": 0.001375}]},
-    {"name": "Water", "properties": [{"temp": 20, "rho": 1000.0, "mu": 0.000891}]}
-  ]
-}
+      "name": "Carbon disulfide",
+      "properties": [
+        {"temp": 0, "rho": 1293.0, "mu": 0.000436},
+        {"temp": 20, "rho": 1265.0, "mu": 0.000360},
+        {"temp": 40, "rho": 1235.0, "mu": 0.000301}
+      ]
+    },
+    {
+      "name": "Carbon tetrachloride",
+      "properties": [
+        {"temp": 0, "rho": 1632.0, "mu": 0.001329},
+        {"temp": 20, "rho": 1590.0, "mu": 0.000910},
+        {"temp": 40, "rho": 1555.0, "mu": 0.000739}
+      ]
+    },
+    {
+      "name": "Chloroform",
+      "properties": [
+        {"temp": 0, "rho": 1526.0, "mu": 0.000700},
+        {"temp": 20, "rho": 1470.0, "mu": 0.000530},
+        {"temp": 40, "rho": 1431.0, "mu": 0.000445}
+      ]
+    },
+    {
+      "name": "Decane",
+      "properties": [
+        {"temp": 0, "rho": 745.0, "mu": 0.001290},
+        {"temp": 20, "rho": 728.0, "mu": 0.000859},
+        {"temp": 40, "rho": 711.0, "mu": 0.000632}
+      ]
+    },
+    {
+      "name": "Ether",
+      "properties": [
+        {"temp": 0, "rho": 736.0, "mu": 0.000286},
+        {"temp": 20, "rho": 715.0, "mu": 0.000223},
+        {"temp": 30, "rho": 702.0, "mu": 0.000197}
+      ]
+    },
+    {
+      "name": "Heptane",
+      "properties": [
+        {"temp": 0, "rho": 699.0, "mu": 0.000523},
+        {"temp": 20, "rho": 681.0, "mu": 0.000376},
+        {"temp": 40, "rho": 664.0, "mu": 0.000305}
+      ]
+    },
+    {
+      "name": "Hexane",
+      "properties": [
+        {"temp": 0, "rho": 675.0, "mu": 0.000398},
+        {"temp": 20, "rho": 657.0, "mu": 0.000297},
+        {"temp": 40, "rho": 641.0, "mu": 0.000244}
+      ]
+    },
+    {
+      "name": "Linseed oil",
+      "properties": [
+        {"temp": 0, "rho": 942.0, "mu": 0.115},
+        {"temp": 20, "rho": 930.0, "mu": 0.0331},
+        {"temp": 40, "rho": 918.0, "mu": 0.0164}
+      ]
+    },
+    {
+      "name": "Octane",
+      "properties": [
+        {"temp": 0, "rho": 718.0, "mu": 0.000711},
+        {"temp": 20, "rho": 701.0, "mu": 0.000510},
+        {"temp": 40, "rho": 684.0, "mu": 0.000403}
+      ]
+    },
+    {
+      "name": "Propane",
+      "properties": [
+        {"temp": -50, "rho": 582.0, "mu": 0.000200},
+        {"temp": 0, "rho": 528.0, "mu": 0.000120},
+        {"temp": 20, "rho": 495.0, "mu": 0.000110}
+      ]
+    },
+    {
+      "name": "Propyl alcohol",
+      "properties": [
+        {"temp": 0, "rho": 819.0, "mu": 0.00388},
+        {"temp": 20, "rho": 802.0, "mu": 0.00192},
+        {"temp": 40, "rho": 786.0, "mu": 0.00113}
+      ]
+    },
+    {
+      "name": "Propylene",
+      "properties": [
+        {"temp": -50, "rho": 612.0, "mu": 0.000180},
+        {"temp": 0, "rho": 548.0, "mu": 0.000100},
+        {"temp": 20, "rho": 516.0, "mu": 0.000090}
+      ]
+    },
+    {
+      "name": "Turpentine",
+      "properties": [
+        {"temp": 0, "rho": 885.0, "mu": 0.00225},
+        {"temp": 20, "rho": 870.0, "mu": 0.001375},
+        {"temp": 40, "rho": 855.0, "mu": 0.000950}
+      ]
+    }
