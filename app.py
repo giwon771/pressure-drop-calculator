@@ -12,17 +12,25 @@ def load_json(filename):
         return None
 
 def interpolate(temp, properties, key):
-    temps = sorted([float(t) for t in properties.keys()])
-    if temp <= temps[0]: return properties[str(int(temps[0]))][key]
-    if temp >= temps[-1]: return properties[str(int(temps[-1]))][key]
+    # properties가 딕셔너리인지 확인하고 온도 리스트를 가져옵니다.
+    # 만약 키가 숫자라면 바로 리스트로 변환합니다.
+    try:
+        temps = sorted([float(t) for t in properties.keys()])
+    except AttributeError:
+        # 키가 숫자로 저장된 경우를 위한 예외 처리
+        temps = sorted([float(t) for t in properties])
+    
+    if temp <= temps[0]: return properties[str(int(temps[0])) if str(int(temps[0])) in properties else int(temps[0])][key]
+    if temp >= temps[-1]: return properties[str(int(temps[-1])) if str(int(temps[-1])) in properties else int(temps[-1])][key]
     
     for i in range(len(temps)-1):
         t1, t2 = temps[i], temps[i+1]
         if t1 <= temp <= t2:
-            v1 = properties[str(int(t1))][key]
-            v2 = properties[str(int(t2))][key]
+            # 키 타입(문자열/숫자)에 상관없이 데이터를 가져오도록 처리
+            v1 = properties[str(int(t1)) if str(int(t1)) in properties else int(t1)][key]
+            v2 = properties[str(int(t2)) if str(int(t2)) in properties else int(t2)][key]
             return v1 + (v2 - v1) * (temp - t1) / (t2 - t1)
-    return properties[str(int(temps[0]))][key]
+    return 0
 
 # --- 페이지 설정 ---
 st.set_page_config(page_title="공학용 유체 설계 시스템 v8.0", layout="wide")
