@@ -1,4 +1,97 @@
 {
+  "fluids": [
+    {
+      "name": "Acetone",
+      "properties": [
+        {"temp": 0, "rho": 812.0, "mu": 0.000395},
+        {"temp": 20, "rho": 787.0, "mu": 0.000316},
+        {"temp": 40, "rho": 764.0, "mu": 0.000262}
+      ]
+    },
+    {
+      "name": "Benzene",
+      "properties": [
+        {"temp": 10, "rho": 889.0, "mu": 0.000757},
+        {"temp": 20, "rho": 876.0, "mu": 0.000601},
+        {"temp": 40, "rho": 852.0, "mu": 0.000438}
+      ]
+    },
+    {
+      "name": "Castor oil",
+      "properties": [
+        {"temp": 10, "rho": 969.0, "mu": 2.420},
+        {"temp": 20, "rho": 960.0, "mu": 0.650},
+        {"temp": 40, "rho": 945.0, "mu": 0.231}
+      ]
+    },
+    {
+      "name": "Ethyl alcohol",
+      "properties": [
+        {"temp": 0, "rho": 806.0, "mu": 0.00177},
+        {"temp": 20, "rho": 789.0, "mu": 0.001095},
+        {"temp": 40, "rho": 772.0, "mu": 0.00083}
+      ]
+    },
+    {
+      "name": "Ethylene glycol",
+      "properties": [
+        {"temp": 0, "rho": 1130.0, "mu": 0.056},
+        {"temp": 20, "rho": 1114.0, "mu": 0.0162},
+        {"temp": 40, "rho": 1101.0, "mu": 0.0084}
+      ]
+    },
+    {
+      "name": "Glycerine",
+      "properties": [
+        {"temp": 0, "rho": 1276.0, "mu": 12.1},
+        {"temp": 20, "rho": 1263.0, "mu": 0.950},
+        {"temp": 40, "rho": 1250.0, "mu": 0.284}
+      ]
+    },
+    {
+      "name": "Kerosene",
+      "properties": [
+        {"temp": 0, "rho": 839.0, "mu": 0.00243},
+        {"temp": 20, "rho": 823.0, "mu": 0.00164},
+        {"temp": 40, "rho": 809.0, "mu": 0.00118}
+      ]
+    },
+    {
+      "name": "Mercury",
+      "properties": [
+        {"temp": 0, "rho": 13628.0, "mu": 0.00168},
+        {"temp": 20, "rho": 13546.0, "mu": 0.00155},
+        {"temp": 50, "rho": 13424.0, "mu": 0.00140}
+      ]
+    },
+    {
+      "name": "Methyl alcohol",
+      "properties": [
+        {"temp": 0, "rho": 810.0, "mu": 0.000810},
+        {"temp": 20, "rho": 789.0, "mu": 0.000560},
+        {"temp": 40, "rho": 774.0, "mu": 0.000450}
+      ]
+    },
+    {
+      "name": "Propylene glycol",
+      "properties": [
+        {"temp": 0, "rho": 1050.0, "mu": 0.243},
+        {"temp": 20, "rho": 1036.0, "mu": 0.042},
+        {"temp": 40, "rho": 1023.0, "mu": 0.015}
+      ]
+    },
+    {
+      "name": "Water",
+      "properties": [
+        {"temp": 0, "rho": 999.8, "mu": 0.001787},
+        {"temp": 20, "rho": 998.2, "mu": 0.001002},
+        {"temp": 40, "rho": 992.2, "mu": 0.000653},
+        {"temp": 60, "rho": 983.2, "mu": 0.000467},
+        {"temp": 80, "rho": 971.8, "mu": 0.000355},
+        {"temp": 100, "rho": 958.4, "mu": 0.000282}
+      ]
+    },
+    {
       "name": "Carbon disulfide",
       "properties": [
         {"temp": 0, "rho": 1293.0, "mu": 0.000436},
@@ -101,4 +194,6 @@
         {"temp": 20, "rho": 870.0, "mu": 0.001375},
         {"temp": 40, "rho": 855.0, "mu": 0.000950}
       ]
-    },
+    }
+  ]
+}
