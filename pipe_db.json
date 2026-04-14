@@ -1,0 +1,27 @@
+{
+  "pipe_standards": [
+    { "nps": "1/8\"", "schedules": { "Sch 40": {"id": 6.83}, "Sch 80": {"id": 5.47} } },
+    { "nps": "1/4\"", "schedules": { "Sch 40": {"id": 9.24}, "Sch 80": {"id": 7.68} } },
+    { "nps": "3/8\"", "schedules": { "Sch 40": {"id": 12.52}, "Sch 80": {"id": 10.74} } },
+    { "nps": "1/2\"", "schedules": { "Sch 40": {"id": 15.80}, "Sch 80": {"id": 13.86} } },
+    { "nps": "3/4\"", "schedules": { "Sch 40": {"id": 20.93}, "Sch 80": {"id": 18.83} } },
+    { "nps": "1\"", "schedules": { "Sch 40": {"id": 26.64}, "Sch 80": {"id": 24.30} } },
+    { "nps": "1 1/4\"", "schedules": { "Sch 40": {"id": 35.04}, "Sch 80": {"id": 32.46} } },
+    { "nps": "1 1/2\"", "schedules": { "Sch 40": {"id": 40.90}, "Sch 80": {"id": 38.10} } },
+    { "nps": "2\"", "schedules": { "Sch 40": {"id": 52.52}, "Sch 80": {"id": 49.26} } },
+    { "nps": "2 1/2\"", "schedules": { "Sch 40": {"id": 62.71}, "Sch 80": {"id": 59.01} } },
+    { "nps": "3\"", "schedules": { "Sch 40": {"id": 77.92}, "Sch 80": {"id": 73.66} } },
+    { "nps": "3 1/2\"", "schedules": { "Sch 40": {"id": 90.12}, "Sch 80": {"id": 85.44} } },
+    { "nps": "4\"", "schedules": { "Sch 40": {"id": 102.3}, "Sch 80": {"id": 97.18} } },
+    { "nps": "5\"", "schedules": { "Sch 40": {"id": 128.2}, "Sch 80": {"id": 122.2} } },
+    { "nps": "6\"", "schedules": { "Sch 40": {"id": 154.1}, "Sch 80": {"id": 146.4} } },
+    { "nps": "8\"", "schedules": { "Sch 40": {"id": 202.7}, "Sch 80": {"id": 193.7} } },
+    { "nps": "10\"", "schedules": { "Sch 40": {"id": 254.6}, "Sch 80": {"id": 242.9} } },
+    { "nps": "12\"", "schedules": { "Sch 40": {"id": 304.8}, "Sch 80": {"id": 288.9} } },
+    { "nps": "14\"", "schedules": { "Sch 30": {"id": 336.5}, "Sch 160": {"id": 284.2} } },
+    { "nps": "16\"", "schedules": { "Sch 30": {"id": 387.3}, "Sch 160": {"id": 325.4} } },
+    { "nps": "18\"", "schedules": { "Sch 20": {"id": 438.1}, "Sch 160": {"id": 366.7} } },
+    { "nps": "20\"", "schedules": { "Sch 20": {"id": 488.9}, "Sch 160": {"id": 408.0} } },
+    { "nps": "24\"", "schedules": { "Sch 20": {"id": 590.5}, "Sch 160": {"id": 490.5} } }
+  ]
+}
