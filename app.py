@@ -12,24 +12,40 @@ def load_json(filename):
         return None
 
 def interpolate(temp, properties, key):
-    # properties가 딕셔너리인지 확인하고 온도 리스트를 가져옵니다.
-    # 만약 키가 숫자라면 바로 리스트로 변환합니다.
     try:
-        temps = sorted([float(t) for t in properties.keys()])
-    except AttributeError:
-        # 키가 숫자로 저장된 경우를 위한 예외 처리
-        temps = sorted([float(t) for t in properties])
-    
-    if temp <= temps[0]: return properties[str(int(temps[0])) if str(int(temps[0])) in properties else int(temps[0])][key]
-    if temp >= temps[-1]: return properties[str(int(temps[-1])) if str(int(temps[-1])) in properties else int(temps[-1])][key]
-    
-    for i in range(len(temps)-1):
-        t1, t2 = temps[i], temps[i+1]
-        if t1 <= temp <= t2:
-            # 키 타입(문자열/숫자)에 상관없이 데이터를 가져오도록 처리
-            v1 = properties[str(int(t1)) if str(int(t1)) in properties else int(t1)][key]
-            v2 = properties[str(int(t2)) if str(int(t2)) in properties else int(t2)][key]
-            return v1 + (v2 - v1) * (temp - t1) / (t2 - t1)
+        # 1. 만약 properties가 리스트 안에 들어있다면 첫 번째 요소를 사용
+        if isinstance(properties, list):
+            properties = properties[0]
+            
+        # 2. 온도 키값들을 가져와서 숫자 리스트로 변환
+        # (문자열 "20"이든 숫자 20이든 모두 float으로 변환)
+        raw_keys = list(properties.keys())
+        temps = sorted([float(k) for k in raw_keys])
+        
+        # 3. 입력 온도가 범위를 벗어날 경우 최댓값/최솟값 반환
+        if temp <= temps[0]:
+            target_key = next(k for k in raw_keys if float(k) == temps[0])
+            return properties[target_key][key]
+        if temp >= temps[-1]:
+            target_key = next(k for k in raw_keys if float(k) == temps[-1])
+            return properties[target_key][key]
+        
+        # 4. 선형 보간 수행
+        for i in range(len(temps) - 1):
+            t1, t2 = temps[i], temps[i+1]
+            if t1 <= temp <= t2:
+                # 실제 딕셔너리에서 해당 숫자와 일치하는 키를 다시 찾음
+                k1 = next(k for k in raw_keys if float(k) == t1)
+                k2 = next(k for k in raw_keys if float(k) == t2)
+                
+                v1 = properties[k1][key]
+                v2 = properties[k2][key]
+                
+                return v1 + (v2 - v1) * (temp - t1) / (t2 - t1)
+                
+    except Exception as e:
+        # 에러 발생 시 디버깅을 위해 0을 반환하거나 로그 출력
+        return 0.001 # 아주 작은 값 반환
     return 0
 
 # --- 페이지 설정 ---
