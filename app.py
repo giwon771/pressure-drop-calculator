@@ -32,6 +32,40 @@ def interpolate(temp, properties, key):
     except Exception as e:
         return 0.0
     return 0.0
+    
+# --- 경제적 최적 지름 계산 엔진 (예제 4.6 로직) ---
+def solve_economic_diameter(rho, mu, m_dot, c1, c2, t, n, a, b, f_multiplier, eta, epsilon):
+    # 초기 가정값: 예제 4.6처럼 임의의 지름(4cm)으로 시작 [cite: 298]
+    D_guess = 0.04  
+    tolerance = 0.00001 # 0.01mm 오차 이내 수렴 조건
+    max_iter = 50
+    
+    for i in range(max_iter):
+        # A. 현재 지름으로 유속 및 Re 계산 [cite: 293]
+        v = (4 * m_dot) / (rho * math.pi * D_guess**2)
+        re = (4 * m_dot) / (math.pi * D_guess * mu)
+        
+        # B. 마찰 계수 f 산출 (Haaland 식 - Moody 다이어그램 대용) [cite: 302]
+        if re > 2300:
+            term = (epsilon / D_guess / 3.7)**1.11 + (6.9 / re)
+            f = (-1.8 * math.log10(term))**-2
+        else:
+            f = 64 / re
+            
+        # C. 식 (4.12)를 이용해 새로운 D_opt 계산 [cite: 212, 285]
+        # 에너지 단가 c2 단위를 $/kWh에서 W단위로 보정 [cite: 262]
+        numerator = 40 * f * (m_dot**3) * (c2 / 1000) * t 
+        denominator = n * (a + b) * (1 + f_multiplier) * c1 * eta * (math.pi**2) * (rho**2)
+        
+        D_new = (numerator / denominator)**(1 / (n + 5))
+        
+        # D. 수렴 확인: 가정한 D와 계산된 D의 차이가 작으면 종료 [cite: 312]
+        if abs(D_new - D_guess) < tolerance:
+            return D_new, f, re
+        
+        D_guess = D_new # 다음 루프를 위해 업데이트
+        
+    return D_guess, f, re
 
 # --- 페이지 설정 ---
 st.set_page_config(page_title="공학용 유체 설계 시스템 v8.0", layout="wide")
@@ -135,8 +169,18 @@ if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
     
     energy_loss_btu_lb = (dp_total / rho) * 0.00042906
 
+    # [새로운 경제성 분석 호출 부분]
+    # 사이드바에서 입력받은 변수들을 함수에 전달합니다.
+    d_opt_m, final_f, final_re = solve_economic_diameter(
+        rho, mu, m_dot, c1_value, c2, t_year, n_exponent, ann_a, ann_b, cost_f, eff_pump, 0.000046
+    )
+    
+    d_opt_mm = d_opt_m * 1000
+    
     # --- 결과 출력 ---
-    st.divider()
+    st.subheader("💰 최적 경제적 직경 분석 결과")
+    st.success(f"이 시스템의 최적 경제적 지름(D_opt)은 **{d_opt_mm:.2f} mm** 입니다.")
+    st.info(f"선정 근거: 연간 운영비(에너지)와 초기 투자비의 합산 최소화 [cite: 14, 203]")
     res_col1, res_col2 = st.columns(2)
     
     with res_col1:
