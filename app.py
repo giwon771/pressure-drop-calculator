@@ -137,6 +137,9 @@ if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
     L = l_val * 1000 if l_unit == "km" else l_val
     area = math.pi * (D**2) / 4
 
+    # 유속(v) 계산 후 바로 m_dot(질량유량) 정의 
+    m_dot = rho * v * area
+    
     # [2. 유속 변환]
     v_calc_process = ""
     if v_unit == "m/s":
@@ -200,3 +203,23 @@ if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
 - 주손실: {dp_major:.2f} Pa / 부손실: {dp_minor:.2f} Pa
 - 최종 ΔP: {dp_total:.2f} Pa
         """)
+    st.divider()
+    st.header("[4] 경제성 분석 설정")
+    
+    # 1. 전력 및 가동 시간 (예제 4.6 기준값) [cite: 262, 264, 268]
+    c2 = st.number_input("에너지 비용 (C2, $/kWh)", value=0.04, help="에너지 단가")
+    t_year = st.number_input("연간 가동 시간 (t, hr/yr)", value=6000)
+    eff_pump = st.slider("펌프 효율 (η)", 0.1, 1.0, 0.75)
+    
+    # 2. 자본 및 유지보수 파라미터 [cite: 265, 266, 267]
+    col_eco1, col_eco2 = st.columns(2)
+    with col_eco1:
+        # 상환율 a = 1/m (m=7년) [cite: 33, 267]
+        ann_a = st.number_input("자본상환율 (a)", value=0.143, format="%.3f")
+        ann_b = st.number_input("유지보수율 (b)", value=0.01)
+    with col_eco2:
+        cost_f = st.number_input("부속품 배수 (F)", value=7.0)
+        n_exponent = st.selectbox("비용 지수 (n)", [1.0, 1.2, 1.4], index=1)
+
+    # 3. 배관 비용 상수 C1 [cite: 263]
+    c1_value = st.number_input("배관 비용 상수 (C1)", value=700.0)
