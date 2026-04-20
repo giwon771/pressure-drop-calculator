@@ -130,12 +130,36 @@ if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
         rho, mu, m_dot, c1_value, c2, t_year, n_exponent, ann_a, ann_b, cost_f, eff_pump, 0.000046
     )
     
-    # 결과 출력
+    # --- 결과 출력 섹션 ---
     st.divider()
     st.subheader("💰 경제적 최적 지름(D_opt) 분석")
-    st.success(f"최적 경제적 지름은 **{d_opt_m*1000:.2f} mm** 입니다.")
-    st.info("선정 근거: 초기 설치비와 연간 에너지 비용의 합계 최소화 [cite: 14, 203]")
+    st.success(f"이 시스템의 최적 경제적 지름(D_opt)은 **{d_opt_m*1000:.2f} mm** 입니다.")
     
-    c1, c2 = st.columns(2)
-    c1.metric("현재 설정 Re", f"{re:.1f}")
-    c2.metric("최적 설계 Re", f"{final_re:.1f}")
+    # [검증을 위한 계산 과정 섹션]
+    with st.expander("🔍 경제성 분석 검증 과정 (예제 4.6 기준 상세 해설)"):
+        st.markdown(f"""
+        ### 1. 입력 파라미터 확인
+        - **질량 유량 ($\dot{{m}}$):** {m_dot:.4f} kg/s [cite: 283]
+        - **에너지 단가 ($C_2$):** ${c2:.4f} /kWh (계산 시 ${c2/1000:.6f} /Wh로 보정) [cite: 262, 287]
+        - **배관 비용 상수 ($C_1$):** {c1_value} [cite: 263]
+        - **가동 시간 ($t$):** {t_year} hr/yr [cite: 264]
+        - **자본 상환 관련:** $a={ann_a:.3f}$, $b={ann_b:.3f}$, $F={cost_f:.1f}$ [cite: 265, 267]
+        - **기타:** 효율($\eta$)={eff_pump}, 비용지수($n$)={n_exponent} [cite: 266, 268]
+
+        ### 2. 최적화 방정식 대입 [cite: 212, 285]
+        최적 지름 $D_{{opt}}$는 아래 식의 반복 계산(Iteration)을 통해 결정됩니다.
+        $$D_{{opt}} = \\left[ \\frac{{40 \cdot f \cdot \dot{{m}}^3 \cdot C_2 \cdot t}}{{n \cdot (a + b) \cdot (1 + F) \cdot C_1 \cdot \eta \cdot \pi^2 \cdot \\rho^2}} \\right]^{{\\frac{{1}}{{n+5}}}}$$
+
+        ### 3. 시행착오법(Trial and Error) 결과
+        - **최종 마찰 계수 ($f$):** {final_f:.4f} [cite: 302, 331]
+        - **최종 Reynolds 수 ($Re$):** {final_re:.1f} [cite: 294, 336]
+        - **수렴된 결과:** 가정한 지름과 계산된 지름이 일치하는 지점 도출 [cite: 312]
+        """)
+        
+        # 수치 대입 과정을 텍스트로 시각화
+        st.latex(rf"D_{{opt}} = \left[ \frac{{40 \cdot {final_f:.4f} \cdot {m_dot:.2f}^3 \cdot {c2/1000:.6f} \cdot {t_year}}}{{{n_exponent} \cdot ({ann_a:.3f} + {ann_b:.2f}) \cdot (1 + {cost_f:.1f}) \cdot {c1_value} \cdot {eff_pump} \cdot \pi^2 \cdot {rho:.0f}^2}} \right]^{{\frac{{1}}{{{n_exponent}+5}}}}")
+
+    # 기존 Re 및 흐름 상태 메트릭 유지
+    c1_res, c2_res = st.columns(2)
+    c1_res.metric("설계 Reynolds Number", f"{final_re:.1f}")
+    c2_res.metric("흐름 판정", flow_type)
