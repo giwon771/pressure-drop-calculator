@@ -136,7 +136,7 @@ if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
     st.success(f"이 시스템의 최적 경제적 지름(D_opt)은 **{d_opt_m*1000:.2f} mm** 입니다.")
     
     # [검증을 위한 계산 과정 섹션]
-    with st.expander("🔍 경제성 분석 검증 과정 (예제 4.6 기준 상세 해설)"):
+    with st.expander("🔍 경제성 분석 검증 과정 (상세 해설)"):
         st.markdown(f"""
         ### 1. 입력 파라미터 확인
         - **질량 유량 ($\dot{{m}}$):** {m_dot:.4f} kg/s [cite: 283]
