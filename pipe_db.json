@@ -23,5 +23,43 @@
     { "nps": "18\"", "schedules": { "Sch 20": {"id": 438.1}, "Sch 160": {"id": 366.7} } },
     { "nps": "20\"", "schedules": { "Sch 20": {"id": 488.9}, "Sch 160": {"id": 408.0} } },
     { "nps": "24\"", "schedules": { "Sch 20": {"id": 590.5}, "Sch 160": {"id": 490.5} } }
+  ],
+  "cost_grades": [
+    {
+      "grade": "ANSI 300# (2026 CPI Adj.)",
+      "c1": 78.3,
+      "n": 1.14,
+      "note": "Standard carbon steel, updated from Table 4.1"
+    },
+    {
+      "grade": "ANSI 400# (2026 CPI Adj.)",
+      "c1": 81.2,
+      "n": 1.20,
+      "note": "Medium pressure, updated from Table 4.1"
+    },
+    {
+      "grade": "ANSI 600# (2026 CPI Adj.)",
+      "c1": 100.1,
+      "n": 1.29,
+      "note": "High pressure service, updated from Table 4.1"
+    },
+    {
+      "grade": "ANSI 900# (2026 CPI Adj.)",
+      "c1": 127.6,
+      "n": 1.32,
+      "note": "Extra high pressure, updated from Table 4.1"
+    },
+    {
+      "grade": "ANSI 1500# (2026 CPI Adj.)",
+      "c1": 188.5,
+      "n": 1.35,
+      "note": "Maximum pressure service, updated from Table 4.1"
+    },
+    {
+      "grade": "Manual Example 4.6",
+      "c1": 700.0,
+      "n": 1.2,
+      "note": "Textbook validation value"
+    }
   ]
 }
