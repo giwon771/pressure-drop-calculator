@@ -15,7 +15,6 @@ def interpolate(temp, properties, key):
         sorted_props = sorted(properties, key=lambda x: x['temp'])
         temps = [float(p['temp']) for p in sorted_props]
         
-        # 범위 밖 처리: Safe Operating Zone 설정으로 인해 이론상 도달하지 않음
         if temp <= temps[0]: return sorted_props[0][key]
         if temp >= temps[-1]: return sorted_props[-1][key]
         
@@ -37,13 +36,14 @@ def solve_economic_diameter(rho, mu, m_dot, c1, c2, t, n, a, b, f_multiplier, et
     for i in range(max_iter):
         v = (4 * m_dot) / (rho * math.pi * D_guess**2)
         re = (4 * m_dot) / (math.pi * D_guess * mu) 
+        
+        # [수정] Re > 2300인 경우 난류 모델 적용 (천이 영역 포함 보수적 설계)
         if re > 2300:
             term = (epsilon / D_guess / 3.7)**1.11 + (6.9 / re)
             f = (-1.8 * math.log10(term))**-2 
         else:
             f = 64 / re
         
-        # 최적화 지름 방정식 (식 4.12 적용)
         numerator = 40 * f * (m_dot**3) * (c2 / 1000) * t 
         denominator = n * (a + b) * (1 + f_multiplier) * c1 * eta * (math.pi**2) * (rho**2)
         D_new = (numerator / denominator)**(1 / (n + 5))
@@ -70,7 +70,6 @@ with st.sidebar:
     st.header("[1] 유체 물성 설정")
     fluid_name = st.selectbox("대상 유체 선택", [f['name'] for f in f_db['fluids']])
     
-    # [Safe Operating Zone] 유체별 온도 범위 자동 추출
     fluid_data = next(item for item in f_db['fluids'] if item['name'] == fluid_name)
     temp_range = [float(p['temp']) for p in fluid_data['properties']]
     min_t, max_t = min(temp_range), max(temp_range)
@@ -79,10 +78,8 @@ with st.sidebar:
     
     if fix_temp:
         target_temp = 20.0
-        # 만약 20도가 범위 밖인 특수 유체인 경우 보정
         target_temp = max(min_t, min(target_temp, max_t))
     else:
-        # [수정] 데이터가 존재하는 범위 내에서만 입력 가능하도록 제한
         target_temp = st.number_input(
             f"운전 온도 ({min_t}°C ~ {max_t}°C)", 
             min_value=min_t, 
@@ -154,9 +151,17 @@ if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
     
     m_dot = rho * v * area 
 
+    # [수정] 천이 영역 판정 로직 추가
     re = (rho * v * D) / mu
-    if re <= 2300: flow_type, f_status = "층류 (Laminar)", "정상"
-    else: flow_type, f_status = "난류 (Turbulent)", "정상"
+    if re <= 2300:
+        flow_type = "층류 (Laminar)"
+        warning_msg = None
+    elif 2300 < re < 4000:
+        flow_type = "천이 영역 (Transitional)"
+        warning_msg = "⚠️ 주의: 현재 흐름이 불안정한 천이 영역에 있습니다. 설계 안전율을 높게 잡는 것을 권장합니다."
+    else:
+        flow_type = "난류 (Turbulent)"
+        warning_msg = None
 
     d_opt_m, final_f, final_re = solve_economic_diameter(
         rho, mu, m_dot, c1_value, c2, t_year, n_exponent, ann_a, ann_b, cost_f, eff_pump, 0.000046
@@ -164,6 +169,11 @@ if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
     
     st.divider()
     st.subheader("💰 경제적 최적 지름(D_opt) 분석")
+    
+    # 천이 영역일 경우 경고창 띄우기
+    if warning_msg:
+        st.warning(warning_msg)
+        
     st.success(f"최적 경제적 지름은 **{d_opt_m*1000:.2f} mm** 입니다.")
     
     with st.expander("🔍 경제성 분석 검증 리포트 (상세 해설)"):
