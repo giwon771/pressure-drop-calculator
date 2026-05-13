@@ -128,7 +128,7 @@ with col1:
     default_id = pipe_info['schedules'][sel_sch]['id']
     d_val = st.number_input("관 안지름(ID)", value=default_id)
     d_unit = st.selectbox("직경 단위", ["mm", "m", "inch"])
-    l_val = st.number_input("배관 직선 거리(L)", value=10.0)
+    l_val = st.number_input("배관 직선 거리", value=10.0)
     l_unit = st.selectbox("거리 단위", ["m", "km"])
 
 with col2:
