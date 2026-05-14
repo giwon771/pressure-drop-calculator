@@ -30,14 +30,13 @@ def interpolate(temp, properties, key):
     
 # --- 경제적 최적 지름 계산 엔진 (시행착오법) ---
 def solve_economic_diameter(rho, mu, m_dot, c1, c2, t, n, a, b, f_multiplier, eta, epsilon):
-    D_guess = 0.04 # 초기 가정값: 4cm
+    D_guess = 0.04 
     tolerance = 0.00001 
     max_iter = 50
     for i in range(max_iter):
         v = (4 * m_dot) / (rho * math.pi * D_guess**2)
         re = (4 * m_dot) / (math.pi * D_guess * mu) 
         
-        # [수정] Re > 2300인 경우 난류 모델 적용 (천이 영역 포함 보수적 설계)
         if re > 2300:
             term = (epsilon / D_guess / 3.7)**1.11 + (6.9 / re)
             f = (-1.8 * math.log10(term))**-2 
@@ -54,9 +53,9 @@ def solve_economic_diameter(rho, mu, m_dot, c1, c2, t, n, a, b, f_multiplier, et
     return D_guess, f, re
 
 # --- 페이지 설정 ---
-st.set_page_config(page_title="공학용 유체 설계 시스템 v8.6", layout="wide")
-st.title("🚀 공학용 유체 수송 설계 시스템 (Web v8.6)")
-st.markdown("### 유동 손실 분석 및 최적 경제 지름($D_{opt}$) 자동 산출")
+st.set_page_config(page_title="공학용 유체 설계 시스템 v8.7", layout="wide")
+st.title("🚀 공학용 유체 수송 설계 시스템 (Web v8.7)")
+st.markdown("### 상용 배관 규격 추천 및 연간 총 비용(TAC) 분석 시스템")
 
 f_db = load_json('fluids_db.json')
 p_db = load_json('pipe_db.json')
@@ -90,7 +89,7 @@ with st.sidebar:
 
     rho = interpolate(target_temp, fluid_data['properties'], 'rho')
     mu = interpolate(target_temp, fluid_data['properties'], 'mu')
-    st.info(f"**신뢰 구간:** {min_t}°C ~ {max_t}°C\n\n**밀도:** {rho:.2f} kg/m³\n\n**점도:** {mu:.6f} Pa·s")
+    st.info(f"**밀도:** {rho:.2f} kg/m³\n\n**점도:** {mu:.6f} Pa·s")
 
     st.divider()
     st.header("[4] 경제성 분석 설정")
@@ -125,8 +124,7 @@ with col1:
     sch_list = list(pipe_info['schedules'].keys())
     sel_sch = st.selectbox("Schedule 선택", sch_list)
     
-    default_id = pipe_info['schedules'][sel_sch]['id']
-    d_val = st.number_input("관 안지름(ID)", value=default_id)
+    d_val = st.number_input("관 안지름(ID)", value=pipe_info['schedules'][sel_sch]['id'])
     d_unit = st.selectbox("직경 단위", ["mm", "m", "inch"])
     l_val = st.number_input("배관 직선 거리", value=10.0)
     l_unit = st.selectbox("거리 단위", ["m", "km"])
@@ -140,9 +138,9 @@ with col2:
 
 # --- 계산 및 결과 ---
 if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
-    D = d_val / 1000 if d_unit == "mm" else (d_val * 0.0254 if d_unit == "inch" else d_val)
+    D_input = d_val / 1000 if d_unit == "mm" else (d_val * 0.0254 if d_unit == "inch" else d_val)
     L = l_val * 1000 if l_unit == "km" else l_val
-    area = math.pi * (D**2) / 4
+    area = math.pi * (D_input**2) / 4
 
     if v_unit == "m/s": v = v_val
     elif v_unit == "m³/s": v = v_val / area
@@ -151,48 +149,65 @@ if st.button("🚀 설계 분석 및 계산 실행", use_container_width=True):
     
     m_dot = rho * v * area 
 
-    # [수정] 천이 영역 판정 로직 추가
-    re = (rho * v * D) / mu
-    if re <= 2300:
-        flow_type = "층류 (Laminar)"
-        warning_msg = None
-    elif 2300 < re < 4000:
-        flow_type = "천이 영역 (Transitional)"
-        warning_msg = "⚠️ 주의: 현재 흐름이 불안정한 천이 영역에 있습니다. 설계 안전율을 높게 잡는 것을 권장합니다."
-    else:
-        flow_type = "난류 (Turbulent)"
-        warning_msg = None
-
+    # 이론적 최적 지름 계산
     d_opt_m, final_f, final_re = solve_economic_diameter(
         rho, mu, m_dot, c1_value, c2, t_year, n_exponent, ann_a, ann_b, cost_f, eff_pump, 0.000046
     )
+
+    # 1. 상용 배관 규격 추천 로직 (Database Matching)
+    recommended_pipe = None
+    min_diff = float('inf')
     
+    for p in p_db['pipe_standards']:
+        if sel_sch in p['schedules']:
+            db_id = p['schedules'][sel_sch]['id'] / 1000 # m 환산
+            diff = abs(db_id - d_opt_m)
+            if diff < min_diff:
+                min_diff = diff
+                recommended_pipe = {"nps": p['nps'], "id": db_id}
+
+    # 2. 추천 배관 기반 경제성 재계산
+    D_real = recommended_pipe['id']
+    v_real = (4 * m_dot) / (rho * math.pi * D_real**2)
+    re_real = (rho * v_real * D_real) / mu
+    
+    # 실제 마찰계수 산출
+    term = (0.000046 / D_real / 3.7)**1.11 + (6.9 / re_real)
+    f_real = (-1.8 * math.log10(term))**-2 if re_real > 2300 else 64/re_real
+    
+    # 연간 운영 비용 (Operating Cost)
+    delta_p = f_real * (L / D_real) * (rho * v_real**2 / 2)
+    power_kw = (delta_p * (m_dot / rho)) / (eff_pump * 1000)
+    annual_energy_cost = power_kw * t_year * c2
+    
+    # 연간 고정 비용 (Fixed Cost)
+    annual_fixed_cost = c1_value * (D_real**n_exponent) * (ann_a + ann_b) * (1 + cost_f) * L
+    total_annual_cost = annual_energy_cost + annual_fixed_cost
+
     st.divider()
-    st.subheader("💰 경제적 최적 지름(D_opt) 분석")
     
-    # 천이 영역일 경우 경고창 띄우기
-    if warning_msg:
-        st.warning(warning_msg)
-        
-    st.success(f"최적 경제적 지름은 **{d_opt_m*1000:.2f} mm** 입니다.")
+    # 결과 출력 섹션
+    st.subheader("💰 최종 설계 권고 및 경제성 평가")
+    st.success(f"이론적 최적 지름은 **{d_opt_m*1000:.2f} mm** 이며, DB 기반 추천 규격은 **NPS {recommended_pipe['nps']} (Sch.{sel_sch})** 입니다.")
     
-    with st.expander("🔍 경제성 분석 검증 리포트 (상세 해설)"):
+    c_res1, c_res2, c_res3 = st.columns(3)
+    c_res1.metric("추천 배관 실지름", f"{D_real*1000:.2f} mm")
+    c_res2.metric("총 연간 비용 (TAC)", f"$ {total_annual_cost:,.2f}")
+    c_res3.metric("설계 유속 (v)", f"{v_real:.3f} m/s")
+
+    # 비용 비중 시각화
+    st.write("### 연간 비용 구성 분석")
+    cost_data = {"에너지 비용 (OPEX)": annual_energy_cost, "설치 비용 (CAPEX 환산)": annual_fixed_cost}
+    st.bar_chart(cost_data)
+
+    with st.expander("🔍 경제성 분석 상세 리포트"):
         st.markdown(f"""
-        ### 1. 설계 파라미터 (2026 최신화 가치)
-        - **유체 및 상태:** {fluid_name} (@ {target_temp}°C)
-        - **질량 유량 ($\dot{{m}}$):** {m_dot:.4f} kg/s
-        - **비용 등급:** {sel_grade} ($C_1={c1_value}, n={n_exponent}$)
+        ### 1. 상용 규격 추천 근거
+        - 이론적 최적 지름($D_{{opt}}$)인 {d_opt_m*1000:.2f} mm에 가장 근접한 규격을 데이터베이스에서 매칭했습니다.
+        - 매칭 규격: NPS {recommended_pipe['nps']} (안지름 {D_real*1000:.2f} mm)
         
-        ### 2. 최적화 알고리즘
-        본 시스템은 **시행착오법(Trial and Error)**을 통해 에너지 비용과 설치 비용의 합이 최소가 되는 지점을 계산합니다.
-        $$D_{{opt}} = \\left[ \\frac{{40 \cdot f \cdot \dot{{m}}^3 \cdot C_2 \cdot t}}{{n \cdot (a + b) \cdot (1 + F) \cdot C_1 \cdot \eta \cdot \pi^2 \cdot \\rho^2}} \\right]^{{\\frac{{1}}{{n+5}}}}$$
-
-        ### 3. 최종 수렴 데이터
-        - **수렴 마찰 계수 ($f$):** {final_f:.4f}
-        - **설계 Reynolds 수 ($Re$):** {final_re:.1f}
+        ### 2. 총 연간 비용 (Total Annual Cost) 산출식
+        $$TAC = C_{{energy}} + C_{{fixed}}$$
+        - **운영비 ($C_{{energy}}$):** 실제 배관에서의 압력 강하를 기반으로 한 펌프 동력 비용
+        - **고정비 ($C_{{fixed}}$):** 2026 CPI가 반영된 설치 비용의 연간 자본 환산액
         """)
-        st.latex(rf"D_{{opt}} = \left[ \frac{{40 \cdot {final_f:.4f} \cdot {m_dot:.2f}^3 \cdot {c2/1000:.6f} \cdot {t_year}}}{{{n_exponent} \cdot ({ann_a:.3f} + {ann_b:.2f}) \cdot (1 + {cost_f:.1f}) \cdot {c1_value} \cdot {eff_pump} \cdot \pi^2 \cdot {rho:.0f}^2}} \right]^{{\frac{{1}}{{{n_exponent}+5}}}}")
-
-    c1_res, c2_res = st.columns(2)
-    c1_res.metric("설계 Re 수", f"{final_re:.1f}")
-    c2_res.metric("현재 유동 상태", flow_type)
