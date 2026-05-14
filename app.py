@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import math
+import plotly.graph_objects as go
 
 # --- 1. 데이터 로드 및 보간 함수 ---
 def load_json(filename):
@@ -147,22 +148,43 @@ if st.button("🚀 설계 시뮬레이션 실행", use_container_width=True):
 
     st.divider()
 
-    # --- 화면 출력 1: 이론적 도출 과정 (마음에 들어 하셨던 부분) ---
-    st.subheader("💰 1. 이론적 최적 지름($D_{opt}$) 도출 근거")
+    # --- 화면 출력 1: 이론적 도출 과정 ---
+    st.subheader("💰 1. 경제적 최적 지름($D_{opt}$) 도출 근거")
     st.success(f"수치 해석 결과, 경제적 최적 지름은 **{d_opt_m*1000:.2f} mm** 입니다.")
     with st.expander("🔍 시행착오법 수렴 리포트 및 수식", expanded=True):
         st.latex(rf"D_{{opt}} = \left[ \frac{{40 \cdot {f_opt:.4f} \cdot {m_dot:.2f}^3 \cdot {c2/1000:.6f} \cdot {t_year}}}{{{n_exponent} \cdot ({ann_a:.3f} + {ann_b:.2f}) \cdot (1 + {cost_f:.1f}) \cdot {c1_value} \cdot {eff_pump} \cdot \pi^2 \cdot {rho:.0f}^2}} \right]^{{\frac{{1}}{{{n_exponent}+5}}}}")
         st.write(f"- 수렴 Reynolds No: {re_opt:.1f} | 수렴 마찰계수(f): {f_opt:.4f}")
 
-    # --- 화면 출력 2: 상용 추천 및 연간 비용 (교수님 피드백 반영) ---
+    # --- 화면 출력 2: 상용 추천 및 연간 비용 ---
     st.subheader("📋 2. 상용 규격 권고 및 연간 총 비용(TAC)")
     res1, res2 = st.columns(2)
     res1.info(f"**추천 규격:** NPS {recommended_pipe['nps']} (Sch.{sel_sch})  \n- 실지름: {D_real*1000:.2f} mm")
     res2.metric("총 연간 비용 (TAC)", f"$ {tac:,.2f} /yr")
     
-    st.write("### 연간 소요 비용 분석")
-    st.bar_chart({"에너지비(OPEX)": op_cost, "설비비(CAPEX 환산)": fixed_cost})
+    # [수정] Plotly 차트 삽입 (올바른 계산 데이터 적용 위치)
+    st.write("### 📊 연간 소요 비용 구성 분석 (Annual Cost Breakdown)")
+    fig = go.Figure(data=[
+        go.Bar(
+            x=["에너지 운영비 (OPEX)", "시설 설치비 (CAPEX 환산)"],
+            y=[op_cost, fixed_cost],
+            text=[f"${op_cost:,.0f}", f"${fixed_cost:,.0f}"],
+            textposition='auto',
+            marker_color=['#11caa0', '#005088'],
+            hovertemplate='%{x}: <b>$%{y:,.2f}</b><extra></extra>'
+        )
+    ])
+    fig.update_layout(
+        height=400, 
+        margin=dict(l=20, r=20, t=20, b=20), 
+        paper_bgcolor="rgba(0,0,0,0)", 
+        plot_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(title="Cost ($/yr)")
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
     # 유동 상태 표시
-    if 2300 < re_real < 4000: st.warning(f"⚠️ 현재 추천 배관 운전 시 **천이 영역**에 해당합니다 (Re={re_real:.1f})")
-    st.info(f"설계 유속: {v_real:.3f} m/s | 흐름 상태: {'난류' if re_real>4000 else '층류' if re_real<=2300 else '천이'}")
+    if 2300 < re_real < 4000: 
+        st.warning(f"⚠️ 현재 추천 배관 운전 시 **천이 영역**에 해당합니다 (Re={re_real:.1f})")
+    
+    flow_status = '난류' if re_real > 4000 else ('층류' if re_real <= 2300 else '천이')
+    st.info(f"설계 유속: {v_real:.3f} m/s | 흐름 상태: {flow_status}")
