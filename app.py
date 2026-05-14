@@ -166,4 +166,3 @@ if st.button("🚀 설계 시뮬레이션 실행", use_container_width=True):
     # 유동 상태 표시
     if 2300 < re_real < 4000: st.warning(f"⚠️ 현재 추천 배관 운전 시 **천이 영역**에 해당합니다 (Re={re_real:.1f})")
     st.info(f"설계 유속: {v_real:.3f} m/s | 흐름 상태: {'난류' if re_real>4000 else '층류' if re_real<=2300 else '천이'}")
-이렇게 맞아?
