@@ -130,8 +130,20 @@ def run_hardy_cross():
     df_pipes = pd.DataFrame(st.session_state.pipe_data)
     st.dataframe(df_pipes, use_container_width=True)
     
-    if st.button("🔄 네트워크 전체 초기화 (교재 표준 그리드 복원)"):
-        del st.session_state.pipe_data
+
+    reset_col1, reset_col2 = st.columns(2)
+    
+    if reset_col1.button("🔄 교재 예제 데이터로 초기화", use_container_width=True):
+        # 세션 데이터를 완전히 지운 후 새로고침하여 초기 예제 배열(그림 5.2) 복원
+        if 'pipe_data' in st.session_state:
+            del st.session_state.pipe_data
+        st.success("교재 표준 그리드 배관망 데이터가 복원되었습니다.")
+        st.rerun()
+        
+    if reset_col2.button("🗑️ 전체 노드 삭제 (Blank Reset)", use_container_width=True):
+        # 모든 배관 제거
+        st.session_state.pipe_data = []
+        st.warning("네트워크의 모든 노드와 배관이 삭제되었습니다. 새로운 설계를 시작하세요.")
         st.rerun()
 
     G_setup = nx.Graph()
