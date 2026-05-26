@@ -99,7 +99,7 @@ def run_hardy_cross():
     roughness_val = st.sidebar.number_input("관 절대 조도 (m)", value=0.00025, format="%.5f")
     pump_eff = st.sidebar.slider("펌프 효율 (η)", 0.5, 0.9, 0.75)
 
-    st.subheader("➕ [방법 A] 설계 배관망 동적 추가/제거 판넬 (절대 좌표 제어)")
+    st.subheader("➕ 설계 배관망 동적 추가(절대 좌표)")
     
     with st.expander("📐 새로운 파이프라인 및 XY 좌표 지정하여 추가하기", expanded=False):
         c1, c2, c3, c4, c5 = st.columns(5)
