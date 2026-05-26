@@ -4,7 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# --- 1. 파이프 객체 정의 (기본 물성 및 수식 유지) ---
+# --- 1. 파이프 객체 정의 ---
 class Pipe:
     def __init__(self, id, node_start, node_end, length, diameter, roughness, initial_q=0.0):
         self.id = id
@@ -13,7 +13,7 @@ class Pipe:
         self.L = length
         self.D = diameter
         self.epsilon = roughness
-        self.Q = initial_q  # 알고리즘 내부에서 자동 초기화 및 업데이트됨
+        self.Q = initial_q  
         self.rho = 1000
         self.mu = 0.89e-3
         
@@ -35,44 +35,33 @@ class Pipe:
     def get_dp_over_q(self):
         return abs(self.get_delta_p() / self.Q) if self.Q != 0 else 0
 
-# --- 2. 동적 하디 크로스 수치 해석 엔진 (루프 가변형) ---
+# --- 2. 동적 하디 크로스 수치 해석 엔진 ---
 def run_dynamic_hardy_cross(pipes, loops_nodes, max_iter=30, tolerance=1e-5):
     iteration_history = []
-    
-    # 파이프 매핑 편의를 위한 딕셔너리 구성
     pipe_dict = {(p.start, p.end): p for p in pipes}
-    pipe_dict.update({(p.end, p.start): p for p in pipes})  # 무방향 매핑
+    pipe_dict.update({(p.end, p.start): p for p in pipes})
     
     for idx in range(max_iter):
         dq_list = []
         
-        # 1. 각 루프별 dQ 계산
         for loop in loops_nodes:
             sum_dp = 0.0
             sum_dp_q = 0.0
             
-            # 루프를 돌며 연결된 배관들 탐색 (예: ['A', 'B', 'E', 'D'] -> A-B, B-E, E-D, D-A)
             for i in range(len(loop)):
                 n1 = loop[i]
                 n2 = loop[(i + 1) % len(loop)]
                 
                 if (n1, n2) in pipe_dict:
                     p = pipe_dict[(n1, n2)]
-                    # 방향성 판단: p.start -> p.end가 루프 순환 방향과 맞으면 시계방향(+)으로 취급
                     sign = 1.0 if p.start == n1 else -1.0
-                    
-                    # 부호를 임시 적용한 압력강하 계산
-                    dp = sign * p.get_delta_p()
-                    sum_dp += dp
+                    sum_dp += sign * p.get_delta_p()
                     sum_dp_q += p.get_dp_over_q()
             
             dq = -sum_dp / (2 * sum_dp_q) if sum_dp_q != 0 else 0
             dq_list.append(dq)
             
-        # 2. 유량 업데이트 (루프 보정치 동시 적용)
-        # 중복 보정을 피하기 위해 임시 보정량 저장 딕셔너리 활용
         q_adjustments = {p.id: 0.0 for p in pipes}
-        
         for l_idx, loop in enumerate(loops_nodes):
             dq = dq_list[l_idx]
             for i in range(len(loop)):
@@ -82,7 +71,6 @@ def run_dynamic_hardy_cross(pipes, loops_nodes, max_iter=30, tolerance=1e-5):
                 sign = 1.0 if p.start == n1 else -1.0
                 q_adjustments[p.id] += sign * dq
                 
-        # 실제 파이프 유량에 반영
         for p in pipes:
             p.Q += q_adjustments[p.id]
             
@@ -94,16 +82,16 @@ def run_dynamic_hardy_cross(pipes, loops_nodes, max_iter=30, tolerance=1e-5):
 
 # --- 3. Streamlit 실행 메인 함수 ---
 def run_hardy_cross():
-    # 세션 상태를 이용해 동적 배관 리스트 초기화 (초기값은 교재 예제 데이터 제공)
+    # 세션 상태 초기화 (교재 그림 5.2 기반 완벽한 직각 격자 절대좌표 sx, sy, ex, ey 추가)
     if 'pipe_data' not in st.session_state:
         st.session_state.pipe_data = [
-            {"id": 1, "start": "A", "end": "B", "L": 300.0, "D": 0.250, "init_q": 0.060},
-            {"id": 2, "start": "B", "end": "E", "L": 250.0, "D": 0.200, "init_q": 0.020},
-            {"id": 3, "start": "E", "end": "D", "L": 300.0, "D": 0.200, "init_q": -0.040},
-            {"id": 4, "start": "D", "end": "A", "L": 250.0, "D": 0.250, "init_q": -0.065},
-            {"id": 5, "start": "B", "end": "C", "L": 300.0, "D": 0.200, "init_q": 0.040},
-            {"id": 6, "start": "C", "end": "F", "L": 250.0, "D": 0.200, "init_q": 0.028},
-            {"id": 7, "start": "F", "end": "E", "L": 300.0, "D": 0.150, "init_q": -0.035}
+            {"id": 1, "start": "A", "end": "B", "L": 300.0, "D": 0.250, "init_q": 0.060, "sx": 2.0, "sy": 0.0, "ex": 1.0, "ey": 0.0},
+            {"id": 2, "start": "B", "end": "E", "L": 250.0, "D": 0.200, "init_q": 0.020, "sx": 1.0, "sy": 0.0, "ex": 1.0, "ey": 1.0},
+            {"id": 3, "start": "E", "end": "D", "L": 300.0, "D": 0.200, "init_q": -0.040, "sx": 1.0, "sy": 1.0, "ex": 2.0, "ey": 1.0},
+            {"id": 4, "start": "D", "end": "A", "L": 250.0, "D": 0.250, "init_q": -0.065, "sx": 2.0, "sy": 1.0, "ex": 2.0, "ey": 0.0},
+            {"id": 5, "start": "B", "end": "C", "L": 300.0, "D": 0.200, "init_q": 0.040, "sx": 1.0, "sy": 0.0, "ex": 0.0, "ey": 0.0},
+            {"id": 6, "start": "C", "end": "F", "L": 250.0, "D": 0.200, "init_q": 0.028, "sx": 0.0, "sy": 0.0, "ex": 0.0, "ey": 1.0},
+            {"id": 7, "start": "F", "end": "E", "L": 300.0, "D": 0.150, "init_q": -0.035, "sx": 0.0, "sy": 1.0, "ex": 1.0, "ey": 1.0}
         ]
 
     st.sidebar.header("[1] 시스템 가동 조건 설정")
@@ -112,77 +100,83 @@ def run_hardy_cross():
     roughness_val = st.sidebar.number_input("관 절대 조도 (m)", value=0.00025, format="%.5f")
     pump_eff = st.sidebar.slider("펌프 효율 (η)", 0.5, 0.9, 0.75)
 
-    # --- 🛠️ 방법 A: 배관 동적 추가 인터페이스 ---
-    st.subheader("➕ [방법 A] 설계 배관망 동적 추가/제거 판넬")
+    # --- 🛠️ 방법 A: 배관 및 절대 좌표 동적 추가 인터페이스 ---
+    st.subheader("➕ [방법 A] 설계 배관망 동적 추가/제거 판넬 (절대 좌표 제어)")
     
-    with st.expander("📐 새로운 파이프라인 추가하기", expanded=False):
+    with st.expander("📐 새로운 파이프라인 및 XY 좌표 지정하여 추가하기", expanded=False):
         c1, c2, c3, c4, c5 = st.columns(5)
         new_id = len(st.session_state.pipe_data) + 1
-        p_start = c1.text_input("시작 노드 (예: A)", value="A").strip().upper()
-        p_end = c2.text_input("끝 노드 (예: F)", value="F").strip().upper()
+        p_start = c1.text_input("시작 노드 (예: G)", value="G").strip().upper()
+        p_end = c2.text_input("끝 노드 (예: H)", value="H").strip().upper()
         p_L = c3.number_input("길이 L (m)", min_value=1.0, value=200.0)
         p_D = c4.number_input("직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
         p_q = c5.number_input("가정 유량", value=0.010, format="%.3f")
         
-        if st.button("➕ 네트워크에 배관 추가", use_container_width=True):
+        # 💡 플랜트 CAD 도면 정렬을 위한 XY 절대 좌표 설정창
+        cx1, cy1, cx2, cy2 = st.columns(4)
+        sx = cx1.number_input("시작 노드 X 위치", value=3.0, step=1.0)
+        sy = cy1.number_input("시작 노드 Y 위치", value=0.0, step=1.0)
+        ex = cx2.number_input("끝 노드 X 위치", value=3.0, step=1.0)
+        ey = cy2.number_input("끝 노드 Y 위치", value=1.0, step=1.0)
+        
+        if st.button("➕ 네트워크에 배관 및 좌표 등록", use_container_width=True):
             if p_start == p_end:
                 st.error("시작 노드와 끝 노드는 같을 수 없습니다.")
             else:
                 st.session_state.pipe_data.append({
-                    "id": new_id, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": p_q
+                    "id": new_id, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": p_q,
+                    "sx": sx, "sy": sy, "ex": ex, "ey": ey
                 })
-                st.success(f"Pipe {new_id} ({p_start} ➔ {p_end})가 성공적으로 구성에 반영되었습니다!")
+                st.success(f"Pipe {new_id} ({p_start}➔{p_end})가 좌표 ({sx}, {sy}) ➔ ({ex}, {ey})에 완벽히 배치되었습니다!")
                 st.rerun()
 
-    # 현재 입력된 배관 리스트 확인 및 초기화 버튼
+    # 현재 배관 데이터 내역 테이블 출력
     df_pipes = pd.DataFrame(st.session_state.pipe_data)
     st.dataframe(df_pipes, use_container_width=True)
     
-    if st.button("🔄 네트워크 전체 초기화 (교재 기본값 복원)"):
+    if st.button("🔄 네트워크 전체 초기화 (교재 표준 그리드 복원)"):
         del st.session_state.pipe_data
         st.rerun()
 
-    # --- 4. NetworkX 그래프 빌드 및 루프 자동 탐색 ---
+    # 그래프 생성 및 절대 좌표 추출
     G_setup = nx.Graph()
     pipes = []
+    pos = {}  # 💡 마트플롯립에 전달할 절대 위치 사전
     
-    # 입력 세션 데이터를 바탕으로 실제 파이프 객체 생성
-    scale = total_inflow / 0.125  # 유량 스케일링 기본 적용
+    scale = total_inflow / 0.125
     for p in st.session_state.pipe_data:
         pipes.append(Pipe(p['id'], p['start'], p['end'], p['L'], p['D'], roughness_val, p['init_q'] * scale))
         G_setup.add_edge(p['start'], p['end'])
+        
+        # 사용자가 입력한 절대 좌표 데이터를 노드 네임에 1:1 매핑
+        pos[p['start']] = (p['sx'], p['sy'])
+        pos[p['end']] = (p['ex'], p['ey'])
 
-    # 💡 마법의 자동 루프 검색 알고리즘 작동
     auto_loops = nx.cycle_basis(G_setup)
 
-    st.info(f"🔍 시스템이 네트워크 위상 구조 분석을 완료했습니다. (감지된 독립 루프 개수: **{len(auto_loops)}개**)")
-    if len(auto_loops) > 0:
-        st.caption(f"감지된 루프 노드 시퀀스: {auto_loops}")
+    st.info(f"🔍 시스템 위상 분석 완료: 감지된 독립 루프 개수 = **{len(auto_loops)}개**")
 
-    # --- 5. 연산 및 시각화 수행 ---
     if len(auto_loops) == 0:
-        st.warning("⚠️ 현재 폐회로(Loop)가 형성되지 않은 열린 배관망 구조입니다. 하디 크로스 해석을 위해 배관을 더 연결하여 루프를 생성해 주세요.")
+        st.warning("⚠️ 현재 폐회로(Loop)가 없는 개방형 계통입니다. 폐회로가 구성되도록 노드를 이어주세요.")
         return
 
-    # 가변 루프 하디 크로스 실행
+    # 수치 해석 구동
     history = run_dynamic_hardy_cross(pipes, auto_loops)
 
-    # UI 레이아웃 배치
+    # --- UI 레이아웃 구획 ---
     col1, col2 = st.columns([3, 2])
     
     with col1:
-        st.subheader("🖼️ 동적 생성된 2D CAD 유동 도면")
+        st.subheader("🖼️ 절대 좌표 정렬 기반 2D 배관 플랜 도면")
         
-        # 유량 방향성 시각화를 위한 DiGraph 빌드
         G_draw = nx.DiGraph()
         for p in pipes:
             if p.Q >= 0: G_draw.add_edge(p.start, p.end, weight=abs(p.Q), id=p.id)
             else: G_draw.add_edge(p.end, p.start, weight=abs(p.Q), id=p.id)
             
-        # 노드가 자유롭게 추가되므로 스프링 레이아웃으로 자동 배치 처리
-        pos = nx.spring_layout(G_draw, seed=42)
-        
         fig, ax = plt.subplots(figsize=(7, 4.5))
+        
+        # 💡 무작위 spring_layout을 제거하고 사용자가 고정한 pos 좌표 적용
         nx.draw_networkx_nodes(G_draw, pos, node_size=600, node_color='#D6EAF8', ax=ax)
         nx.draw_networkx_labels(G_draw, pos, font_size=11, font_weight='bold', ax=ax)
         
@@ -190,7 +184,6 @@ def run_hardy_cross():
             nx.draw_networkx_nodes(G_draw, pos, nodelist=[control_node], node_size=700, node_color='#FF5733', ax=ax)
             
         edges = G_draw.edges(data=True)
-        # 두께 가시성 조정
         weights = [max(e[2]['weight'] * 150, 1.5) for e in edges]
         nx.draw_networkx_edges(G_draw, pos, width=weights, edge_color='#2C3E50', arrowsize=18, ax=ax)
         
@@ -203,7 +196,6 @@ def run_hardy_cross():
     with col2:
         st.subheader("📊 자동 다중루프 보정 수렴 리포트")
         
-        # 가변 루프 차수별 출력 데이터 가공
         report_data = []
         for idx, dqs in enumerate(history[:5]):
             row = {"반복 횟수": f"{idx+1}차"}
