@@ -44,7 +44,7 @@ class Pipe:
         # dP / Q 계산 (보정량 dQ 계산용) [cite: 312, 321]
         return abs(self.get_delta_p() / self.Q) if self.Q != 0 else 0
 
-# --- 2. 하디 크로스 수치 해석 엔진 (정밀 수정본) ---
+# --- 2. 하디 크로스 수치 해석 엔진 (정식 문법 수정본) ---
 def run_hardy_cross_solver(pipes, loop1_indices, loop2_indices, max_iter=20, tolerance=1e-5):
     iteration_history = []
     
@@ -53,29 +53,29 @@ def run_hardy_cross_solver(pipes, loop1_indices, loop2_indices, max_iter=20, tol
         loop1 = [pipes[idx] for idx in loop1_indices]
         loop2 = [pipes[idx] for idx in loop2_indices]
         
-        # [Loop I] dQ 계산 (오타 수정 완료) [cite: 312]
+        # [Loop I] dQ 계산
         sum_dp1 = sum(p.get_delta_p() for p in loop1)
         sum_dp_q1 = sum(p.get_dp_over_q() for p in loop1)
         dq1 = -sum_dp1 / (2 * sum_dp_q1) if sum_dp_q1 != 0 else 0
         
-        # [Loop II] dQ 계산 [cite: 312]
+        # [Loop II] dQ 계산
         sum_dp2 = sum(p.get_delta_p() for p in loop2)
         sum_dp_q2 = sum(p.get_dp_over_q() for p in loop2)
         dq2 = -sum_dp2 / (2 * sum_dp_q2) if sum_dp_q2 != 0 else 0
         
-        # [유량 업데이트 연산] [cite: 319, 330, 331]
-        # 개별 배관 유량 수정량 적용 (공통 배관 독립 연산) [cite: 319]
-        pipes[0].Q += dq1  # Pipe 1 (Loop I 전용)
-        pipes[2].Q += dq1  # Pipe 3 (Loop I 전용)
-        pipes[3].Q += dq1  # Pipe 4 (Loop I 전용)
+        # [유량 업데이트 연산] - 한 줄 쓰기 문법 오류 해결을 위해 줄바꿈 처리
+        # Loop I 독립 배관 업데이트
+        pipes[0].Q += dq1  # Pipe 1
+        pipes[2].Q += dq1  # Pipe 3
+        pipes[3].Q += dq1  # Pipe 4
         
-        pipes[4].Q += dq2  # Pipe 5 (Loop II 전용)
-        pipes[5].Q += dq2  # Pipe 6 (Loop II 전용)
-        pipes[6].Q += dq2  # Pipe 7 (Loop II 전용)
+        # Loop II 독립 배관 업데이트
+        pipes[4].Q += dq2  # Pipe 5
+        pipes[5].Q += dq2  # Pipe 6
+        pipes[6].Q += dq2  # Pipe 7
         
-        # [핵심] 공통 배관(Pipe 2, 인덱스 1) 업데이트 [cite: 330, 331]
-        # Pipe 2는 Loop I에게는 시계방향(+), Loop II에게는 반시계방향(-)입니다[cite: 131, 146, 147, 332, 333].
-        pipes[1].Q += (dq1 - dq2) [cite: 332, 333]
+        # 공통 배관 업데이트 (Pipe 2)
+        pipes[1].Q += (dq1 - dq2)
         
         # 수렴 이력 기록 및 조건 판별
         iteration_history.append((dq1, dq2))
