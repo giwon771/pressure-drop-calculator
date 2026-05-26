@@ -44,8 +44,7 @@ elif project_mode == "🕸️ Hardy Cross 배관망 해석":
     # ◀ 임시 문구 지우고 이 한 줄로 교체!
     hardy_cross.run_hardy_cross()
     
-    # 임시 안내 메시지 (이후 hardy_cross.py 연동 시 이 부분을 수정하게 됩니다)
-    st.info("💡 현재 배관망 해석 엔진 및 NetworkX 기반 2D CAD 시각화 모듈을 준비 중입니다.")
+  
     
     # 교수님 피드백 핵심 요약 가이드라인 배치 (개발 방향성 리마인드용)
     with st.expander("📌 교수님 피드백 및 개발 요구사항 (체크리스트)", expanded=True):
@@ -61,5 +60,3 @@ elif project_mode == "🕸️ Hardy Cross 배관망 해석":
         4. **최적 펌프 선정 연계**
             - 배관망의 최종 압력 강하 곡선(System Curve)을 도출하고, 이를 만족하는 정격 펌프 사양(동력, 양정) 자동 연산
         """)
-        
-    st.warning("👨‍💻 하디 크로스 백엔드 수식 로직과 2D 도면 UI 코딩 준비가 완료되면 이 창에 실시간 그래프와 함께 시뮬레이터가 구동됩니다.")
