@@ -144,13 +144,12 @@ def run_hardy_cross():
     pos = {}  # 💡 마트플롯립에 전달할 절대 위치 사전
     
     scale = total_inflow / 0.125
-    for p in st.session_state.pipe_data:
-        pipes.append(Pipe(p['id'], p['start'], p['end'], p['L'], p['D'], roughness_val, p['init_q'] * scale))
-        G_setup.add_edge(p['start'], p['end'])
-        
-        # 사용자가 입력한 절대 좌표 데이터를 노드 네임에 1:1 매핑
-        pos[p['start']] = (p['sx'], p['sy'])
-        pos[p['end']] = (p['ex'], p['ey'])
+  for p in st.session_state.pipe_data:
+    pipes.append(Pipe(p['id'], p['start'], p['end'], p['L'], p['D'], roughness_val, p['init_q'] * scale))
+    G_setup.add_edge(p['start'], p['end'])
+    
+    pos[p['start']] = (p.get('sx', 0.0), p.get('sy', 0.0))
+    pos[p['end']] = (p.get('ex', 0.0), p.get('ey', 0.0))
 
     auto_loops = nx.cycle_basis(G_setup)
 
