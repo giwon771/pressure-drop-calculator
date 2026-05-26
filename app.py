@@ -1,5 +1,7 @@
 import streamlit as st
 import economic_dia  # 분리한 경제지름 모듈 임포트
+import economic_dia
+import hardy_cross  
 
 # --- 1. 페이지 공통 설정 (최상단에 한 번만 선언해야 합니다) ---
 st.set_page_config(
@@ -35,10 +37,12 @@ if project_mode == "📈 Darcy-Weisbach 경제지름 구하기":
     economic_dia.run_economic_dia()
 
 elif project_mode == "🕸️ Hardy Cross 배관망 해석":
-    # 신규 프로젝트 메인 타이틀 출력
     st.title("🕸️ Hardy Cross 배관망 해석 및 최적 펌프 선정 시스템")
     st.caption("다중 루프 배관망에서의 유량 배분, 압력 강하 시뮬레이션 및 민감도 기반 제어 노드 탐색")
     st.write("---")
+
+    # ◀ 임시 문구 지우고 이 한 줄로 교체!
+    hardy_cross.run_hardy_cross()
     
     # 임시 안내 메시지 (이후 hardy_cross.py 연동 시 이 부분을 수정하게 됩니다)
     st.info("💡 현재 배관망 해석 엔진 및 NetworkX 기반 2D CAD 시각화 모듈을 준비 중입니다.")
