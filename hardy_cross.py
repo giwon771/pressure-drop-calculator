@@ -82,7 +82,6 @@ def run_dynamic_hardy_cross(pipes, loops_nodes, max_iter=30, tolerance=1e-5):
 
 # --- 3. Streamlit 실행 메인 함수 ---
 def run_hardy_cross():
-    # 세션 상태 초기화 (교재 그림 5.2 기반 완벽한 직각 격자 절대좌표 sx, sy, ex, ey 추가)
     if 'pipe_data' not in st.session_state:
         st.session_state.pipe_data = [
             {"id": 1, "start": "A", "end": "B", "L": 300.0, "D": 0.250, "init_q": 0.060, "sx": 2.0, "sy": 0.0, "ex": 1.0, "ey": 0.0},
@@ -100,7 +99,6 @@ def run_hardy_cross():
     roughness_val = st.sidebar.number_input("관 절대 조도 (m)", value=0.00025, format="%.5f")
     pump_eff = st.sidebar.slider("펌프 효율 (η)", 0.5, 0.9, 0.75)
 
-    # --- 🛠️ 방법 A: 배관 및 절대 좌표 동적 추가 인터페이스 ---
     st.subheader("➕ [방법 A] 설계 배관망 동적 추가/제거 판넬 (절대 좌표 제어)")
     
     with st.expander("📐 새로운 파이프라인 및 XY 좌표 지정하여 추가하기", expanded=False):
@@ -112,7 +110,6 @@ def run_hardy_cross():
         p_D = c4.number_input("직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
         p_q = c5.number_input("가정 유량", value=0.010, format="%.3f")
         
-        # 💡 플랜트 CAD 도면 정렬을 위한 XY 절대 좌표 설정창
         cx1, cy1, cx2, cy2 = st.columns(4)
         sx = cx1.number_input("시작 노드 X 위치", value=3.0, step=1.0)
         sy = cy1.number_input("시작 노드 Y 위치", value=0.0, step=1.0)
@@ -127,10 +124,9 @@ def run_hardy_cross():
                     "id": new_id, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": p_q,
                     "sx": sx, "sy": sy, "ex": ex, "ey": ey
                 })
-                st.success(f"Pipe {new_id} ({p_start}➔{p_end})가 좌표 ({sx}, {sy}) ➔ ({ex}, {ey})에 완벽히 배치되었습니다!")
+                st.success(f"Pipe {new_id} ({p_start}➔{p_end})가 완벽히 배치되었습니다!")
                 st.rerun()
 
-    # 현재 배관 데이터 내역 테이블 출력
     df_pipes = pd.DataFrame(st.session_state.pipe_data)
     st.dataframe(df_pipes, use_container_width=True)
     
@@ -138,18 +134,17 @@ def run_hardy_cross():
         del st.session_state.pipe_data
         st.rerun()
 
-    # 그래프 생성 및 절대 좌표 추출
     G_setup = nx.Graph()
     pipes = []
-    pos = {}  # 💡 마트플롯립에 전달할 절대 위치 사전
+    pos = {}  
     
     scale = total_inflow / 0.125
-  for p in st.session_state.pipe_data:
-    pipes.append(Pipe(p['id'], p['start'], p['end'], p['L'], p['D'], roughness_val, p['init_q'] * scale))
-    G_setup.add_edge(p['start'], p['end'])
-    
-    pos[p['start']] = (p.get('sx', 0.0), p.get('sy', 0.0))
-    pos[p['end']] = (p.get('ex', 0.0), p.get('ey', 0.0))
+    for p in st.session_state.pipe_data:
+        pipes.append(Pipe(p['id'], p['start'], p['end'], p['L'], p['D'], roughness_val, p['init_q'] * scale))
+        G_setup.add_edge(p['start'], p['end'])
+        
+        pos[p['start']] = (p.get('sx', 0.0), p.get('sy', 0.0))
+        pos[p['end']] = (p.get('ex', 0.0), p.get('ey', 0.0))
 
     auto_loops = nx.cycle_basis(G_setup)
 
@@ -159,10 +154,8 @@ def run_hardy_cross():
         st.warning("⚠️ 현재 폐회로(Loop)가 없는 개방형 계통입니다. 폐회로가 구성되도록 노드를 이어주세요.")
         return
 
-    # 수치 해석 구동
     history = run_dynamic_hardy_cross(pipes, auto_loops)
 
-    # --- UI 레이아웃 구획 ---
     col1, col2 = st.columns([3, 2])
     
     with col1:
@@ -175,7 +168,6 @@ def run_hardy_cross():
             
         fig, ax = plt.subplots(figsize=(7, 4.5))
         
-        # 💡 무작위 spring_layout을 제거하고 사용자가 고정한 pos 좌표 적용
         nx.draw_networkx_nodes(G_draw, pos, node_size=600, node_color='#D6EAF8', ax=ax)
         nx.draw_networkx_labels(G_draw, pos, font_size=11, font_weight='bold', ax=ax)
         
