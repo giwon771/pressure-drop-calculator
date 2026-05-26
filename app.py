@@ -23,7 +23,6 @@ project_mode = st.sidebar.radio(
 
 st.sidebar.divider()
 st.sidebar.caption("개발자: 이기원 (Mechanical Engineering)")
-st.sidebar.caption("지도교수: 배주열 교수님")
 
 # --- 3. 사용자가 선택한 모드에 따른 화면 분기 ---
 if project_mode == "📈 Darcy-Weisbach 경제지름 구하기":
