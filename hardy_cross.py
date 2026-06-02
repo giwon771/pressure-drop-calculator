@@ -3,7 +3,6 @@ import math
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
-import urllib.parse
 
 # --- 1. 파이프 객체 정의 ---
 class Pipe:
@@ -285,6 +284,7 @@ def run_hardy_cross():
         st.write("---")
         st.markdown("### 🔌 Grundfos 상용 규격 펌프 다중 추천 모듈")
         
+        # 분기 조건에 따라 중복 없이 깨끗하게 2개씩 분리 정의
         if required_power_kw <= 3.0:
             recommendations = [
                 {"search_name": "CR 5-10", "model": "Grundfos CR 5-10 A-A-A-E-HQQE", "power": "3.0 kW", "rpm": "2,900 RPM", "conn": "DN 32", "type": "수직 다단형 (공간 절약형 최고 효율)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 3.0kW 선택"},
@@ -306,7 +306,10 @@ def run_hardy_cross():
                 {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304", "power": "110.0 kW", "rpm": "1,485 RPM", "conn": "DN 200 / DN 150", "type": "장축 대형 대용량 볼류트형", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 110.0kW 선택"}
             ]
 
+        # 고유 ID 및 선정 근거가 완벽히 결합된 카드 드로잉 루프
         for idx, pump in enumerate(recommendations):
+            unique_key = f"pump_btn_{required_power_kw:.2f}_{idx}_{pump['search_name']}"
+            
             with st.container(border=True):
                 st.markdown(f"**🏅 추천 대안 기종 #{idx+1}: {pump['model']}**")
                 st.markdown(f"""
@@ -315,13 +318,13 @@ def run_hardy_cross():
                 * **{pump['guide']}**
                 """)
                 
-                # 💡 [신규 추가] 교수님 방어용 선정 근거/조건 가이드 팝업창
+                # 📝 [기능 복원 완료] 드디어 완벽하게 바인딩된 공학적 근거 팝업 창
                 with st.expander("📝 공학적 선정 조건 및 수식 근거 보기", expanded=False):
                     st.markdown(f"""
                     **[선정 근거 리포트]**
-                    1. **유량 조건 ($Q$):** 유입 유량 {total_inflow:.3f} $m^3/s$ 연속방정식 완벽 충족.
-                    2. **양정/손실 조건 ($\Delta P$):** 배관망 다중루프 Hardy Cross 수치해석 결과, 총 마찰 손실압인 **{total_dp_loss:,.1f} $N/m^2$**을 극복할 수 있는 수두(Head) 확보.
-                    3. **동력 조건 ($W_{{pump}}$):** 계산된 이론 동력({required_power_kw:.2f} kW)에 모터 펌프 전달 효율($\eta={pump_eff}$) 및 공학적 안전율(약 15%)을 반영하여 정격 모터 규격인 **{pump['power']}** 기종으로 자동 빌드함.
+                    1. **유량 조건 ($Q$):** 시스템 전체 지배 노드의 총 유입량 {total_inflow:.3f} $m^3/s$에 대한 질량 보존 법칙 완벽 충족.
+                    2. **손실 조건 ($\Delta P$):** 배관 선로의 지오메트리를 Hardy Cross 기법으로 수렴 연산한 결과 도출된 총 마찰 손실압 **{total_dp_loss:,.1f} $N/m^2$**을 안정적으로 밀어낼 수 있는 수두 능력 확보.
+                    3. **동력 사양 ($W_{{pump}}$):** 수치해석 이론 동력({required_power_kw:.2f} kW)에 기계적 효율($\\eta={pump_eff}$) 및 산업용 안전 마진(약 15%)을 가산하여 정격 출력 규격 **{pump['power']}** 기종을 최종 역설계함.
                     
                     **[지배 방정식]**
                     $$W_{{pump}} = \\frac{{\\Delta P \\cdot Q}}{{\\eta \\cdot 1000}} \\quad [kW]$$
@@ -331,6 +334,7 @@ def run_hardy_cross():
                 st.link_button(
                     f"⚙️ 카탈로그 열기 (검색창에 [{pump['search_name']}] 입력)", 
                     catalog_url,
+                    key=unique_key,
                     use_container_width=True
                 )
         st.caption("ℹ️ 각 기종 아래 버튼을 누르면 Grundfos 정식 카탈로그 센터로 안전하게 연결됩니다.")
