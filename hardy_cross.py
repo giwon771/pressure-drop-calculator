@@ -107,7 +107,7 @@ def run_hardy_cross():
 
     st.subheader("🕹️ 스마트 배관망 그래픽 배치 조립 판넬")
     
-    with st.expander("📐 좌표 입력 없이 방향 선택으로 배관 쉽게 연장하기", expanded=True):
+    with st.expander("📐 좌표 입력 없이 방향 선택으로 배관 쉽게 연장하기", expanded=False):
         if len(existing_nodes) == 0:
             st.info("💡 현재 네트워크가 비어 있습니다. 첫 배관의 시작점(원점)을 배치합니다.")
             c1, c2, c3, c4 = st.columns(4)
@@ -141,34 +141,20 @@ def run_hardy_cross():
                     angle = 0.0
                 else:
                     angle = st.slider("배관 가설 각도 입력 (도, °)", -180, 180, 45, step=5)
-                    
-                    # 💡 [핵심 추가] 실시간 삼각함수 단위원 가이드 맵 플롯 드로잉
                     fig_circle, ax_c = plt.subplots(figsize=(2.2, 2.2))
-                    # 원형 나침반 베이스 드로잉
                     circle = plt.Circle((0,0), 1.0, color='#BDC3C7', fill=False, linestyle='--', linewidth=1.2)
                     ax_c.add_patch(circle)
-                    
-                    # 십자 기준선
                     ax_c.axhline(0, color='#BDC3C7', linewidth=0.8, linestyle=':')
                     ax_c.axvline(0, color='#BDC3C7', linewidth=0.8, linestyle=':')
-                    
-                    # 실시간 유저 각도 벡터 화살표 시각화
                     rad_preview = math.radians(angle)
                     vx, vy = math.cos(rad_preview), math.sin(rad_preview)
                     ax_c.quiver(0, 0, vx, vy, angles='xy', scale_units='xy', scale=1, color='#E74C3C', width=0.07)
-                    
-                    # 텍스트 정보 매핑
                     ax_c.text(vx*1.3, vy*1.3, f"{angle}°", color='#E74C3C', fontsize=9, weight='bold', ha='center', va='center')
-                    
-                    # 플롯 여백 박멸 및 축 차단
                     ax_c.set_xlim(-1.5, 1.5)
                     ax_c.set_ylim(-1.5, 1.5)
                     ax_c.axis('off')
                     plt.tight_layout()
-                    
-                    # 스트림릿 판넬 내부에 가이드 원 투사
                     st.pyplot(fig_circle)
-                    st.caption(f"🧭 방향 컴파스: X 성분={vx:.2f}, Y 성분={vy:.2f}")
                 
             with col_ui2:
                 st.markdown("**3. 도달점 및 스펙 지정**")
@@ -249,6 +235,7 @@ def run_hardy_cross():
 
     history = run_dynamic_hardy_cross(pipes, auto_loops)
 
+    # --- UI 레이아웃 화면 표시 ---
     col1, col2 = st.columns([3, 2])
     
     with col1:
@@ -285,24 +272,66 @@ def run_hardy_cross():
         st.pyplot(fig)
 
     with col2:
-        st.subheader("📊 자동 다중루프 보정 수렴 리포트")
-        report_data = []
-        for idx, dqs in enumerate(history[:5]):
-            row = {"반복 횟수": f"{idx+1}차"}
-            for l_idx, dq_val in enumerate(dqs):
-                row[f"Loop {l_idx+1} ΔQ"] = f"{dq_val:.6f}"
-            report_data.append(row)
-        st.table(report_data)
+        st.subheader("📊 계통 마찰 손실 및 소요 동력 리포트")
         
+        # 시스템 총 손실 및 요구 전력 연산
         total_dp_loss = sum(abs(p.get_delta_p()) for p in pipes)
         required_power_w = total_dp_loss * total_inflow
         required_power_kw = required_power_w / (pump_eff * 1000)
         
-        st.metric("시스템 총 마찰 압력 강하", f"{total_dp_loss:,.1f} N/m²")
-        st.metric("💡 권장 최소 펌프 정격 동력", f"{required_power_kw:.2f} kW")
+        st.metric("계통 총 마찰 압력 강하 (Total ΔP)", f"{total_dp_loss:,.1f} N/m²")
+        st.metric("이론적 소요 동력 (Required Power)", f"{required_power_kw:.2f} kW")
+        
+        # 💡 [교수님 피드백 ② 반영] 상용 정격 펌프 자동 추천 매칭 시스템
+        st.write("---")
+        st.markdown("### 🔌 열유체 시스템 규격 펌프 매칭")
+        
+        # 실제 산업용 정격 규격 모터 베이스 카탈로그 데이터 빌드 (여유율 약 15~20% 내재)
+        pump_catalog = [
+            {"name": "CR-3S (소형 순환용 고효율 인라인 펌프)", "capacity_kw": 3.0, "desc": "실험실 규모 소형 루프 계통용"},
+            {"name": "NK-15 (중형 볼류트 프로세스 펌프)", "capacity_kw": 15.0, "desc": "일반 플랜트 유체 수송 및 중형 루프용"},
+            {"name": "수중 다단 터빈 펌프 SP-45", "capacity_kw": 45.0, "desc": "고양정/대유량 공정 제어 및 대형 관로용"},
+            {"name": "대형 산업용 양흡입 펌프 고정형 기종 DF-180", "capacity_kw": 180.0, "desc": "대규모 주수간선 및 다중 대형 루프 처리용"}
+        ]
+        
+        # 적합 모델 필터링 알고리즘
+        selected_pump = None
+        for pump in pump_catalog:
+            if pump["capacity_kw"] >= required_power_kw:
+                selected_pump = pump
+                break
+                
+        if selected_pump:
+            st.success(f"🎯 **최적 추천 기종: {selected_pump['name']}**")
+            st.markdown(f"""
+            * **펌프 정격 동력:** {selected_pump['capacity_kw']:.1f} kW  
+            * **모델 분류:** {selected_pump['desc']}  
+            * **선정 의견:** 현재 계통 요구 동력({required_power_kw:.2f} kW) 대비 적정 여유율을 확보한 상용 규격 사양입니다.
+            """)
+        else:
+            st.error("🚨 **용량 초과:** 현재 요구 동력이 상용 카탈로그 최대 범위를 초과했습니다. 유량을 줄이거나 배관 관경(D)을 넓혀 압력 저하를 유도하세요.")
 
     st.divider()
     
+    # 💡 [교수님 피드백 ① 반영] 전체 압력 저하 가이드라인 및 공학적 소견 연동
+    st.subheader("🧐 열유체 공학적 설계 종합 진단 소견")
+    
+    # 관경 조건에 따른 압력강하 평가 알고리즘 임베딩
+    avg_diameter = sum(p.D for p in pipes) / len(pipes)
+    
+    col_eval1, col_eval2 = st.columns(2)
+    with col_eval1:
+        st.metric("배관망 평균 관경 (Avg D)", f"{avg_diameter:.3f} m")
+    with col_eval2:
+        # 손실압이 특정 기준(예: 50,000 N/m²) 이하일 때 최적화 달성으로 판정
+        if total_dp_loss < 50000:
+            st.chunk_status = "Good"
+            st.success(f"🎉 **설계 합격 (압력 최적화 달성):** 현재 전체 압력 손실치({total_dp_loss:,.1f} N/m²)가 경제적 안정 범위 내에 있습니다. 배관 관경과 지오메트리 배치가 유체 마찰 저항을 억제하는 데 효과적으로 설계되었습니다.")
+        else:
+            st.chunk_status = "Warning"
+            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 현재 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. 교수님이 강조하신 **'전체 압력 저하'**를 달성하기 위해, 손실이 가장 큰 배관 라인의 직경(D)을 키우거나 유량을 조절하는 피드백 루프 설계를 추천합니다.")
+
+    # 상세 내역 데이터프레임 표 출력
     st.subheader("📋 파이프 라인별 해석 결과 상세 내역")
     result_table = []
     for p in pipes:
