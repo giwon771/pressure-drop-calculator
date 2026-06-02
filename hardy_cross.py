@@ -82,6 +82,7 @@ def run_dynamic_hardy_cross(pipes, loops_nodes, max_iter=30, tolerance=1e-5):
 
 # --- 3. Streamlit 실행 메인 함수 ---
 def run_hardy_cross():
+    # 세션 상태 초기화 (초기값: 교재 그림 5.2 표준 격자 배치)
     if 'pipe_data' not in st.session_state:
         st.session_state.pipe_data = [
             {"id": 1, "start": "A", "end": "B", "L": 300.0, "D": 0.250, "init_q": 0.060, "sx": 2.0, "sy": 0.0, "ex": 1.0, "ey": 0.0},
@@ -99,87 +100,134 @@ def run_hardy_cross():
     roughness_val = st.sidebar.number_input("관 절대 조도 (m)", value=0.00025, format="%.5f")
     pump_eff = st.sidebar.slider("펌프 효율 (η)", 0.5, 0.9, 0.75)
 
-    st.subheader("➕ 설계 배관망 동적 추가(절대 좌표)")
+    # 현존하는 모든 노드 위치 딕셔너리 사전 빌드 (방향 설계용)
+    temp_pos = {}
+    for p in st.session_state.pipe_data:
+        temp_pos[p['start']] = (p.get('sx', 0.0), p.get('sy', 0.0))
+        temp_pos[p['end']] = (p.get('ex', 0.0), p.get('ey', 0.0))
+    existing_nodes = sorted(list(temp_pos.keys()))
+
+    # --- 🛠️ 획기적 개선: 방향 선택형 간편 배관 추가 판넬 ---
+    st.subheader("🕹️ 스마트 배관망 그래픽 배치 조립 판넬")
     
-    with st.expander("📐 새로운 파이프라인 및 XY 좌표 지정하여 추가하기", expanded=False):
-        c1, c2, c3, c4, c5 = st.columns(5)
-        new_id = len(st.session_state.pipe_data) + 1
-        p_start = c1.text_input("시작 노드 (예: G)", value="G").strip().upper()
-        p_end = c2.text_input("끝 노드 (예: H)", value="H").strip().upper()
-        p_L = c3.number_input("길이 L (m)", min_value=1.0, value=200.0)
-        p_D = c4.number_input("직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
-        p_q = c5.number_input("가정 유량", value=0.010, format="%.3f")
-        
-        cx1, cy1, cx2, cy2 = st.columns(4)
-        sx = cx1.number_input("시작 노드 X 위치", value=3.0, step=1.0)
-        sy = cy1.number_input("시작 노드 Y 위치", value=0.0, step=1.0)
-        ex = cx2.number_input("끝 노드 X 위치", value=3.0, step=1.0)
-        ey = cy2.number_input("끝 노드 Y 위치", value=1.0, step=1.0)
-        
-        if st.button("➕ 네트워크에 배관 및 좌표 등록", use_container_width=True):
-            if p_start == p_end:
-                st.error("시작 노드와 끝 노드는 같을 수 없습니다.")
-            else:
+    with st.expander("📐 좌표 입력 없이 방향 선택으로 배관 쉽게 연장하기", expanded=True):
+        if len(existing_nodes) == 0:
+            st.info("💡 현재 네트워크가 비어 있습니다. 첫 배관의 시작점(원점)을 임의 배치합니다.")
+            c1, c2, c3, c4 = st.columns(4)
+            p_start = c1.text_input("시작 노드 이름", value="A").strip().upper()
+            p_end = c2.text_input("끝 노드 이름", value="B").strip().upper()
+            p_L = c3.number_input("길이 L (m)", min_value=1.0, value=200.0, key="blank_L")
+            p_D = c4.number_input("직경 D (m)", min_value=0.01, value=0.200, key="blank_D")
+            
+            if st.button("🚀 최초 원점 배관 생성", use_container_width=True):
                 st.session_state.pipe_data.append({
-                    "id": new_id, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": p_q,
-                    "sx": sx, "sy": sy, "ex": ex, "ey": ey
+                    "id": 1, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": 0.05,
+                    "sx": 0.0, "sy": 0.0, "ex": 1.0, "ey": 0.0
                 })
-                st.success(f"Pipe {new_id} ({p_start}➔{p_end})가 완벽히 배치되었습니다!")
                 st.rerun()
+        else:
+            col_ui1, col_ui2 = st.columns(2)
+            
+            with col_ui1:
+                st.markdown("**1. 출발점 설정**")
+                p_start = st.selectbox("어느 노드에서 배관을 연장할까요?", existing_nodes)
+                # 선택한 노드의 실제 XY 좌표 확보
+                sx, sy = temp_pos[p_start]
+                st.caption(f"📍 선택 노드 위치: X={sx:.1f}, Y={sy:.1f}")
+                
+                st.markdown("**2. 연장할 방향 선택**")
+                direction = st.radio(
+                    "어느 방향으로 관을 가설합니까?",
+                    ["우측으로 연장 (+X)", "좌측으로 연장 (-X)", "위로 연장 (+Y)", "아래로 연장 (-Y)"]
+                )
+                
+            with col_ui2:
+                st.markdown("**3. 도달점 및 스펙 지정**")
+                p_end = st.text_input("도달 노드 이름 입력 (기존 노드 지정 시 폐회로 형성)", value="G").strip().upper()
+                p_L = st.number_input("배관 길이 L (m)", min_value=1.0, value=200.0)
+                p_D = st.number_input("배관 직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
+                p_q = st.number_input("초기 가정 유량 (m³/s)", value=0.020, format="%.3f")
 
+            # 선택한 방향에 의거하여 끝 노드의 가상 좌표 연산 백엔드 엔진
+            if direction == "우측으로 연장 (+X)": ex, ey = sx + 1.0, sy
+            elif direction == "좌측으로 연장 (-X)": ex, ey = sx - 1.0, sy
+            elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + 1.0
+            else: ex, ey = sx, sy - 1.0
+            
+            # 만약 끝 노드가 이미 존재하는 노드라면, 기존 노드가 가지고 있는 고유 좌표를 강제 매핑하여 도면 왜곡 방지
+            if p_end in temp_pos:
+                ex, ey = temp_pos[p_end]
+
+            if st.button("🛠️ 지정 방향으로 배관라인 즉시 가설", use_container_width=True):
+                if p_start == p_end:
+                    st.error("시작 노드와 끝 노드가 같으면 루프 연산이 불가합니다.")
+                else:
+                    new_id = len(st.session_state.pipe_data) + 1
+                    st.session_state.pipe_data.append({
+                        "id": new_id, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": p_q,
+                        "sx": sx, "sy": sy, "ex": ex, "ey": ey
+                    })
+                    st.success(f"🎉 성공: {p_start}에서 {direction}하여 노드 {p_end}를 연결하는 배관 #{new_id} 가설 완료!")
+                    st.rerun()
+
+    # 현재 배관 리스트 테이블
     df_pipes = pd.DataFrame(st.session_state.pipe_data)
-    st.dataframe(df_pipes, use_container_width=True)
+    if not df_pipes.empty:
+        st.dataframe(df_pipes[["id", "start", "end", "L", "D", "init_q"]], use_container_width=True)
     
-
+    # 💡 이중 리셋 구조 컴포넌트 분할 배치
     reset_col1, reset_col2 = st.columns(2)
-    
     if reset_col1.button("🔄 교재 예제 데이터로 초기화", use_container_width=True):
-        # 세션 데이터를 완전히 지운 후 새로고침하여 초기 예제 배열(그림 5.2) 복원
-        if 'pipe_data' in st.session_state:
-            del st.session_state.pipe_data
-        st.success("교재 표준 그리드 배관망 데이터가 복원되었습니다.")
+        if 'pipe_data' in st.session_state: del st.session_state.pipe_data
         st.rerun()
-        
     if reset_col2.button("🗑️ 전체 노드 삭제 (Blank Reset)", use_container_width=True):
-        # 모든 배관 제거
         st.session_state.pipe_data = []
-        st.warning("네트워크의 모든 노드와 배관이 삭제되었습니다. 새로운 설계를 시작하세요.")
         st.rerun()
 
+    if len(st.session_state.pipe_data) == 0:
+        st.warning("⚠️ 현재 시스템 내에 배관 선로가 전혀 없습니다. 위쪽 판넬에서 최초 원점 배관을 생성해 주세요.")
+        return
+
+    # 데이터 객체 변환 및 그래프 구조 매핑
     G_setup = nx.Graph()
     pipes = []
     pos = {}  
     
-    scale = total_inflow / 0.125
+    scale = total_inflow / 0.125 if len(st.session_state.pipe_data) == 7 else 1.0
     for p in st.session_state.pipe_data:
         pipes.append(Pipe(p['id'], p['start'], p['end'], p['L'], p['D'], roughness_val, p['init_q'] * scale))
         G_setup.add_edge(p['start'], p['end'])
-        
         pos[p['start']] = (p.get('sx', 0.0), p.get('sy', 0.0))
         pos[p['end']] = (p.get('ex', 0.0), p.get('ey', 0.0))
 
     auto_loops = nx.cycle_basis(G_setup)
-
     st.info(f"🔍 시스템 위상 분석 완료: 감지된 독립 루프 개수 = **{len(auto_loops)}개**")
 
     if len(auto_loops) == 0:
-        st.warning("⚠️ 현재 폐회로(Loop)가 없는 개방형 계통입니다. 폐회로가 구성되도록 노드를 이어주세요.")
+        st.warning("⚠️ 현재 폐회로(Loop)가 완전히 닫히지 않은 트리형 배관입니다. 하디 크로스 해석을 수행하려면 노드와 노드를 이어 루프를 완성해 주세요.")
+        
+        # 루프가 없는 상태라도 배관 형상은 볼 수 있게 단순 도면 플롯 출력
+        fig, ax = plt.subplots(figsize=(7, 4.5))
+        nx.draw_networkx_nodes(G_setup, pos, node_size=600, node_color='#EAEDED', ax=ax)
+        nx.draw_networkx_labels(G_setup, pos, font_size=11, font_weight='bold', ax=ax)
+        nx.draw_networkx_edges(G_setup, pos, width=2, edge_color='#7F8C8D', ax=ax)
+        st.pyplot(fig)
         return
 
+    # 수치 해석 구동
     history = run_dynamic_hardy_cross(pipes, auto_loops)
 
+    # --- UI 레이아웃 화면 표시 ---
     col1, col2 = st.columns([3, 2])
     
     with col1:
         st.subheader("🖼️ 절대 좌표 정렬 기반 2D 배관 플랜 도면")
-        
         G_draw = nx.DiGraph()
         for p in pipes:
             if p.Q >= 0: G_draw.add_edge(p.start, p.end, weight=abs(p.Q), id=p.id)
             else: G_draw.add_edge(p.end, p.start, weight=abs(p.Q), id=p.id)
             
         fig, ax = plt.subplots(figsize=(7, 4.5))
-        
         nx.draw_networkx_nodes(G_draw, pos, node_size=600, node_color='#D6EAF8', ax=ax)
         nx.draw_networkx_labels(G_draw, pos, font_size=11, font_weight='bold', ax=ax)
         
@@ -198,7 +246,6 @@ def run_hardy_cross():
 
     with col2:
         st.subheader("📊 자동 다중루프 보정 수렴 리포트")
-        
         report_data = []
         for idx, dqs in enumerate(history[:5]):
             row = {"반복 횟수": f"{idx+1}차"}
