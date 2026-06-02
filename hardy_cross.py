@@ -107,7 +107,7 @@ def run_hardy_cross():
 
     st.subheader("🕹️ 스마트 배관망 그래픽 배치 조립 판넬")
     
-    with st.expander("📐 좌표 입력 없이 방향 선택으로 배관 쉽게 연장하기", expanded=False):
+    with st.expander("📐 배관 연장하기", expanded=False):
         if len(existing_nodes) == 0:
             st.info("💡 현재 네트워크가 비어 있습니다. 첫 배관의 시작점(원점)을 배치합니다.")
             c1, c2, c3, c4 = st.columns(4)
@@ -194,7 +194,7 @@ def run_hardy_cross():
         st.dataframe(df_pipes[["id", "start", "end", "L", "D", "init_q"]], use_container_width=True)
     
     reset_col1, reset_col2 = st.columns(2)
-    if reset_col1.button("🔄 교재 예제 데이터로 초기화", use_container_width=True):
+    if reset_col1.button("🔄 예제 데이터로 초기화", use_container_width=True):
         if 'pipe_data' in st.session_state: del st.session_state.pipe_data
         st.rerun()
     if reset_col2.button("🗑️ 전체 노드 삭제 (Blank Reset)", use_container_width=True):
@@ -323,7 +323,7 @@ def run_hardy_cross():
                     use_container_width=True
                 )
 
-        # 💡 [보안 우회 완료] 안전한 정식 카탈로그 메인 주소로 다이렉트 연동버튼 배치
+        # 💡 정식 카탈로그 메인 주소로 다이렉트 연동버튼 배치
         for idx, pump in enumerate(recommendations):
             with st.container(border=True):
                 st.markdown(f"**🏅 추천 대안 기종 #{idx+1}: {pump['model']}**")
@@ -355,7 +355,7 @@ def run_hardy_cross():
         if total_dp_loss < 50000:
             st.success(f"🎉 **설계 합격 (압력 최적화 달성):** 현재 전체 압력 손실치({total_dp_loss:,.1f} N/m²)가 경제적 안정 범위 내에 있습니다. 배관 관경과 지오메트리 배치가 유체 마찰 저항을 억제하는 데 효과적으로 설계되었습니다.")
         else:
-            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 현재 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. 교수님이 강조하신 **'전체 압력 저하'**를 달성하기 위해, 손실이 가장 큰 배관 라인의 직경(D)을 키우거나 유량을 조절하는 피드백 루프 설계를 추천합니다.")
+            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 현재 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다.  **'전체 압력 저하'**를 달성하기 위해, 손실이 가장 큰 배관 라인의 직경(D)을 키우거나 유량을 조절하는 피드백 루프 설계를 추천합니다.")
 
     st.subheader("📋 파이프 라인별 해석 결과 상세 내역")
     result_table = []
