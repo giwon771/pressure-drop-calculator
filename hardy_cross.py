@@ -140,9 +140,35 @@ def run_hardy_cross():
                     )
                     angle = 0.0
                 else:
-                    # 💡 대각선 연장을 위한 유저 각도 입력 인터페이스 제공
                     angle = st.slider("배관 가설 각도 입력 (도, °)", -180, 180, 45, step=5)
-                    st.caption("🧭 0°=우측, 90°=상단, 180°=좌측, -90°=하단")
+                    
+                    # 💡 [핵심 추가] 실시간 삼각함수 단위원 가이드 맵 플롯 드로잉
+                    fig_circle, ax_c = plt.subplots(figsize=(2.2, 2.2))
+                    # 원형 나침반 베이스 드로잉
+                    circle = plt.Circle((0,0), 1.0, color='#BDC3C7', fill=False, linestyle='--', linewidth=1.2)
+                    ax_c.add_patch(circle)
+                    
+                    # 십자 기준선
+                    ax_c.axhline(0, color='#BDC3C7', linewidth=0.8, linestyle=':')
+                    ax_c.axvline(0, color='#BDC3C7', linewidth=0.8, linestyle=':')
+                    
+                    # 실시간 유저 각도 벡터 화살표 시각화
+                    rad_preview = math.radians(angle)
+                    vx, vy = math.cos(rad_preview), math.sin(rad_preview)
+                    ax_c.quiver(0, 0, vx, vy, angles='xy', scale_units='xy', scale=1, color='#E74C3C', width=0.07)
+                    
+                    # 텍스트 정보 매핑
+                    ax_c.text(vx*1.3, vy*1.3, f"{angle}°", color='#E74C3C', fontsize=9, weight='bold', ha='center', va='center')
+                    
+                    # 플롯 여백 박멸 및 축 차단
+                    ax_c.set_xlim(-1.5, 1.5)
+                    ax_c.set_ylim(-1.5, 1.5)
+                    ax_c.axis('off')
+                    plt.tight_layout()
+                    
+                    # 스트림릿 판넬 내부에 가이드 원 투사
+                    st.pyplot(fig_circle)
+                    st.caption(f"🧭 방향 컴파스: X 성분={vx:.2f}, Y 성분={vy:.2f}")
                 
             with col_ui2:
                 st.markdown("**3. 도달점 및 스펙 지정**")
@@ -151,19 +177,16 @@ def run_hardy_cross():
                 p_D = st.number_input("배관 직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
                 p_q = st.number_input("초기 가정 유량 (m³/s)", value=0.020, format="%.3f")
 
-            # 💡 [핵심 대각선 엔지니어링 소스 수식] 삼각함수를 통한 가상 벡터 좌표 연산
             if layout_mode == "직각 방향 가설":
                 if direction == "우측으로 연장 (+X)": ex, ey = sx + p_L, sy
                 elif direction == "좌측으로 연장 (-X)": ex, ey = sx - p_L, sy
                 elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + p_L
                 else: ex, ey = sx, sy - p_L
             else:
-                # 대각선 배치 시 삼각함수 호도법 변환 연산 (dx = L * cosθ, dy = L * sinθ)
                 rad = math.radians(angle)
                 ex = sx + p_L * math.cos(rad)
                 ey = sy + p_L * math.sin(rad)
             
-            # 자석 스냅 처리
             is_snap = False
             if p_end in temp_pos:
                 ex, ey = temp_pos[p_end]
