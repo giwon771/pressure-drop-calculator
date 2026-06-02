@@ -284,26 +284,44 @@ def run_hardy_cross():
         st.write("---")
         st.markdown("### 🔌 Grundfos 상용 규격 펌프 다중 추천 모듈")
         
+       # --- hardy_cross.py 내부 recommendations 데이터 세팅 구역 수정 예시 ---
         if required_power_kw <= 3.0:
             recommendations = [
-                {"search_name": "CR 5-10", "model": "Grundfos CR 5-10 A-A-A-E-HQQE", "power": "3.0 kW", "rpm": "2,900 RPM", "conn": "DN 32", "type": "수직 다단형 (공간 절약형 최고 효율)"},
-                {"search_name": "NB 32-125", "model": "Grundfos NB 32-125/142 A-F-A-E-BAQE", "power": "3.0 kW", "rpm": "2,910 RPM", "conn": "DN 50 / DN 32", "type": "단단 엔드석션형 (유지 보수 용이)"}
+                {"search_name": "CR 5-10", "model": "Grundfos CR 5-10 A-A-A-E-HQQE", "power": "3.0 kW", "rpm": "2,900 RPM", "conn": "DN 32", "type": "수직 다단형 (공간 절약형 최고 효율)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 3.0kW 선택"},
+                {"search_name": "NB 32-125", "model": "Grundfos NB 32-125/142 A-F-A-E-BAQE", "power": "3.0 kW", "rpm": "2,910 RPM", "conn": "DN 50 / DN 32", "type": "단단 엔드석션형 (유지 보수 용이)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 3.0kW 선택"}
             ]
         elif required_power_kw <= 15.0:
             recommendations = [
-                {"search_name": "NB 50-160", "model": "Grundfos NB 50-160/154 A-F-A-E-BAQE", "power": "15.0 kW", "rpm": "2,940 RPM", "conn": "DN 65 / DN 50", "type": "단단 엔드석션형 (표준 공정용 기종)"},
-                {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE", "power": "11.0 kW", "rpm": "2,920 RPM", "conn": "DN 80", "type": "수직 고압 다단형 (정밀 유량 제어 특화)"}
+                {"search_name": "NB 50-160", "model": "Grundfos NB 50-160/154 A-F-A-E-BAQE", "power": "15.0 kW", "rpm": "2,940 RPM", "conn": "DN 65 / DN 50", "type": "단단 엔드석션형 (표준 공정용 기종)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 15.0kW 선택"},
+                {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE", "power": "11.0 kW", "rpm": "2,920 RPM", "conn": "DN 80", "type": "수직 고압 다단형 (정밀 유량 제어 특화)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 11.0kW 선택"}
             ]
         elif required_power_kw <= 45.0:
             recommendations = [
-                {"search_name": "NK 100-200", "model": "Grundfos NK 100-200/219 A-F-A-E-BAQE", "power": "45.0 kW", "rpm": "1,475 RPM", "conn": "DN 125 / DN 100", "type": "장축 볼류트형 (저회전수 저소음형)"},
-                {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 A-F-A-E-BAQE", "power": "37.0 kW", "rpm": "2,950 RPM", "conn": "DN 100 / DN 80", "type": "단단 엔드석션형 (대유량 고유속 특화)"}
+                {"search_name": "NK 100-200", "model": "Grundfos NK 100-200/219 A-F-A-E-BAQE", "power": "45.0 kW", "rpm": "1,475 RPM", "conn": "DN 125 / DN 100", "type": "장축 볼류트형 (저회전수 저소음형)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 45.0kW 선택"},
+                {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 A-F-A-E-BAQE", "power": "37.0 kW", "rpm": "2,950 RPM", "conn": "DN 100 / DN 80", "type": "단단 엔드석션형 (대유량 고유속 특화)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 37.0kW 선택"}
             ]
         else:
             recommendations = [
-                {"search_name": "LS 200-150", "model": "Grundfos LS 200-150", "power": "180.0 kW", "rpm": "1,480 RPM", "conn": "DN 200 / DN 150", "type": "플랜트 양흡입형 (대규모 메인 주간선용)"},
-                {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304", "power": "110.0 kW", "rpm": "1,485 RPM", "conn": "DN 200 / DN 150", "type": "장축 대형 대용량 볼류트형"}
+                {"search_name": "LS 200-150", "model": "Grundfos LS 200-150", "power": "180.0 kW", "rpm": "1,480 RPM", "conn": "DN 200 / DN 150", "type": "플랜트 양흡입형 (대규모 메인 주간선용)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 180.0kW 선택"},
+                {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304", "power": "110.0 kW", "rpm": "1,485 RPM", "conn": "DN 200 / DN 150", "type": "장축 대형 대용량 볼류트형", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 110.0kW 선택"}
             ]
+
+        # 화면 출력부 내부에 guide 문구 찍어주기
+        for idx, pump in enumerate(recommendations):
+            with st.container(border=True):
+                st.markdown(f"**🏅 추천 대안 기종 #{idx+1}: {pump['model']}**")
+                st.markdown(f"""
+                * 분류 형태: {pump['type']}  
+                * 정격 사양: {pump['power']} | {pump['rpm']} | 구경 {pump['conn']}
+                * **{pump['guide']}** # 💡 화면 카드 안에 가이드라인 문구를 강렬하게 노출
+                """)
+                
+                catalog_url = "https://product-selection.grundfos.com/?lc=KOR"
+                st.link_button(
+                    f"⚙️ 카탈로그 열기 (검색창에 [{pump['search_name']}] 입력)", 
+                    catalog_url,
+                    use_container_width=True
+                )
 
         # 💡 [보안 우회 완료] 안전한 정식 카탈로그 메인 주소로 다이렉트 연동버튼 배치
         for idx, pump in enumerate(recommendations):
