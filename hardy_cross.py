@@ -88,16 +88,13 @@ def run_hardy_cross():
             {"id": 7, "start": "F", "end": "E", "L": 300.0, "D": 0.150, "init_q": -0.035, "sx": -300.0, "sy": 250.0, "ex": 0.0, "ey": 250.0}
         ]
 
-    # --- 💡 [개선 ①] 현재 존재하는 실제 노드 목록 실시간 실측 계산 ---
     temp_pos = {}
     for p in st.session_state.pipe_data:
         temp_pos[p['start']] = (p.get('sx', 0.0), p.get('sy', 0.0))
         temp_pos[p['end']] = (p.get('ex', 0.0), p.get('ey', 0.0))
     existing_nodes = sorted(list(temp_pos.keys()))
 
-    # 사이드바 설정 영역 (고정 배열 대신 실시간 추출된 existing_nodes 연동)
     st.sidebar.header("[1] 시스템 가동 조건 설정")
-    
     if len(existing_nodes) > 0:
         control_node = st.sidebar.selectbox("펌프/밸브 제어 노드 선택", existing_nodes)
     else:
@@ -133,24 +130,40 @@ def run_hardy_cross():
                 p_start = st.selectbox("어느 노드에서 배관을 연장할까요?", existing_nodes)
                 sx, sy = temp_pos[p_start]
                 
-                st.markdown("**2. 연장할 방향 선택**")
-                direction = st.radio(
-                    "어느 방향으로 관을 가설합니까?",
-                    ["우측으로 연장 (+X)", "좌측으로 연장 (-X)", "위로 연장 (+Y)", "아래로 연장 (-Y)"]
-                )
+                st.markdown("**2. 연장할 방향 모드 선택**")
+                layout_mode = st.radio("가설 형태", ["직각 방향 가설", "대각선 각도 지정 가설"])
+                
+                if layout_mode == "직각 방향 가설":
+                    direction = st.radio(
+                        "어느 방향으로 관을 가설합니까?",
+                        ["우측으로 연장 (+X)", "좌측으로 연장 (-X)", "위로 연장 (+Y)", "아래로 연장 (-Y)"]
+                    )
+                    angle = 0.0
+                else:
+                    # 💡 대각선 연장을 위한 유저 각도 입력 인터페이스 제공
+                    angle = st.slider("배관 가설 각도 입력 (도, °)", -180, 180, 45, step=5)
+                    st.caption("🧭 0°=우측, 90°=상단, 180°=좌측, -90°=하단")
                 
             with col_ui2:
                 st.markdown("**3. 도달점 및 스펙 지정**")
-                p_end = st.text_input("도달 노드 이름 입력 (이미 있는 노드면 자동 스냅)", value="C").strip().upper()
+                p_end = st.text_input("도달 노드 이름 입력 (이미 있는 노드면 자동 스냅)", value="G").strip().upper()
                 p_L = st.number_input("배관 물리 길이 L (m)", min_value=1.0, value=200.0)
                 p_D = st.number_input("배관 직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
                 p_q = st.number_input("초기 가정 유량 (m³/s)", value=0.020, format="%.3f")
 
-            if direction == "우측으로 연장 (+X)": ex, ey = sx + p_L, sy
-            elif direction == "좌측으로 연장 (-X)": ex, ey = sx - p_L, sy
-            elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + p_L
-            else: ex, ey = sx, sy - p_L
+            # 💡 [핵심 대각선 엔지니어링 소스 수식] 삼각함수를 통한 가상 벡터 좌표 연산
+            if layout_mode == "직각 방향 가설":
+                if direction == "우측으로 연장 (+X)": ex, ey = sx + p_L, sy
+                elif direction == "좌측으로 연장 (-X)": ex, ey = sx - p_L, sy
+                elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + p_L
+                else: ex, ey = sx, sy - p_L
+            else:
+                # 대각선 배치 시 삼각함수 호도법 변환 연산 (dx = L * cosθ, dy = L * sinθ)
+                rad = math.radians(angle)
+                ex = sx + p_L * math.cos(rad)
+                ey = sy + p_L * math.sin(rad)
             
+            # 자석 스냅 처리
             is_snap = False
             if p_end in temp_pos:
                 ex, ey = temp_pos[p_end]
@@ -203,12 +216,16 @@ def run_hardy_cross():
         nx.draw_networkx_nodes(G_setup, pos, node_size=600, node_color='#EAEDED', ax=ax)
         nx.draw_networkx_labels(G_setup, pos, font_size=11, font_weight='bold', ax=ax)
         nx.draw_networkx_edges(G_setup, pos, width=2, edge_color='#7F8C8D', ax=ax)
+        
+        ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+        ax.set_xlabel("X-Axis Distance (m)", fontsize=10, fontweight='bold')
+        ax.set_ylabel("Y-Axis Distance (m)", fontsize=10, fontweight='bold')
+        ax.grid(True, linestyle=':', alpha=0.6)
         st.pyplot(fig)
         return
 
     history = run_dynamic_hardy_cross(pipes, auto_loops)
 
-    # --- UI 레이아웃 화면 표시 ---
     col1, col2 = st.columns([3, 2])
     
     with col1:
@@ -236,7 +253,6 @@ def run_hardy_cross():
             
         nx.draw_networkx_edge_labels(G_draw, pos, edge_labels=edge_labels, font_size=8, font_color='red')
         
-        # 💡 [개선 ②] 폰트 호환성을 위해 축 텍스트 라벨을 표준 영문으로 전면 변경 (ㅁㅁ 깨짐 완벽 해결)
         ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
         ax.set_xlabel("X-Axis Distance (m)", fontsize=10, fontweight='bold')
         ax.set_ylabel("Y-Axis Distance (m)", fontsize=10, fontweight='bold')
