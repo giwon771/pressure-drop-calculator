@@ -284,59 +284,72 @@ def run_hardy_cross():
         st.write("---")
         st.markdown("### 🔌 Grundfos 상용 규격 펌프 다중 추천 모듈")
         
-        # 분기 조건에 따라 중복 없이 깨끗하게 2개씩 분리 정의
-        if required_power_kw <= 3.0:
-            recommendations = [
-                {"search_name": "CR 5-10", "model": "Grundfos CR 5-10 A-A-A-E-HQQE", "power": "3.0 kW", "rpm": "2,900 RPM", "conn": "DN 32", "type": "수직 다단형 (공간 절약형 최고 효율)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 3.0kW 선택"},
-                {"search_name": "NB 32-125", "model": "Grundfos NB 32-125/142 A-F-A-E-BAQE", "power": "3.0 kW", "rpm": "2,910 RPM", "conn": "DN 50 / DN 32", "type": "단단 엔드석션형 (유지 보수 용이)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 3.0kW 선택"}
-            ]
-        elif required_power_kw <= 15.0:
-            recommendations = [
-                {"search_name": "NB 50-160", "model": "Grundfos NB 50-160/154 A-F-A-E-BAQE", "power": "15.0 kW", "rpm": "2,940 RPM", "conn": "DN 65 / DN 50", "type": "단단 엔드석션형 (표준 공정용 기종)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 15.0kW 선택"},
-                {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE", "power": "11.0 kW", "rpm": "2,920 RPM", "conn": "DN 80", "type": "수직 고압 다단형 (정밀 유량 제어 특화)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 11.0kW 선택"}
-            ]
-        elif required_power_kw <= 45.0:
-            recommendations = [
-                {"search_name": "NK 100-200", "model": "Grundfos NK 100-200/219 A-F-A-E-BAQE", "power": "45.0 kW", "rpm": "1,475 RPM", "conn": "DN 125 / DN 100", "type": "장축 볼류트형 (저회전수 저소음형)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 45.0kW 선택"},
-                {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 A-F-A-E-BAQE", "power": "37.0 kW", "rpm": "2,950 RPM", "conn": "DN 100 / DN 80", "type": "단단 엔드석션형 (대유량 고유속 특화)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 37.0kW 선택"}
-            ]
-        else:
-            recommendations = [
-                {"search_name": "LS 200-150", "model": "Grundfos LS 200-150", "power": "180.0 kW", "rpm": "1,480 RPM", "conn": "DN 200 / DN 150", "type": "플랜트 양흡입형 (대규모 메인 주간선용)", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 180.0kW 선택"},
-                {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304", "power": "110.0 kW", "rpm": "1,485 RPM", "conn": "DN 200 / DN 150", "type": "장축 대형 대용량 볼류트형", "guide": "⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) 110.0kW 선택"}
-            ]
-
-        # 고유 ID 및 선정 근거가 완벽히 결합된 카드 드로잉 루프
-        for idx, pump in enumerate(recommendations):
-            unique_key = f"pump_btn_{required_power_kw:.2f}_{idx}_{pump['search_name']}"
+        # 💡 그룬포스 모터 용량 정격 카탈로그 DB 선언
+        full_pump_db = [
+            {"search_name": "CR 3-4", "model": "Grundfos CR 3-4 A-A-A-E-HQQE", "power_val": 0.75, "power": "0.75 kW", "rpm": "2,850 RPM", "conn": "DN 25", "type": "수직 다단형 (소형 정밀 계통용)"},
+            {"search_name": "CR 5-10", "model": "Grundfos CR 5-10 A-A-A-E-HQQE", "power_val": 3.0, "power": "3.0 kW", "rpm": "2,900 RPM", "conn": "DN 32", "type": "수직 다단형 (공간 절약형 최고 효율)"},
+            {"search_name": "NB 32-125", "model": "Grundfos NB 32-125/142 A-F-A-E-BAQE", "power_val": 3.0, "power": "3.0 kW", "rpm": "2,910 RPM", "conn": "DN 50 / DN 32", "type": "단단 엔드석션형 (유지 보수 용이)"},
+            {"search_name": "CR 15-3", "model": "Grundfos CR 15-3 A-A-A-E-HQQE", "power_val": 5.5, "power": "5.5 kW", "rpm": "2,890 RPM", "conn": "DN 50", "type": "수직 다단 원심형 (중형 루프 최적화)"},
+            {"search_name": "NB 40-160", "model": "Grundfos NB 40-160/143 A-F-A-E-BAQE", "power_val": 7.5, "power": "7.5 kW", "rpm": "2,920 RPM", "conn": "DN 65 / DN 40", "type": "단단 엔드석션형 (부하 변동 대응 기종)"},
+            {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE", "power_val": 11.0, "power": "11.0 kW", "rpm": "2,920 RPM", "conn": "DN 80", "type": "수직 고압 다단형 (정밀 유량 제어 특화)"},
+            {"search_name": "NB 50-160", "model": "Grundfos NB 50-160/154 A-F-A-E-BAQE", "power_val": 15.0, "power": "15.0 kW", "rpm": "2,940 RPM", "conn": "DN 65 / DN 50", "type": "단단 엔드석션형 (표준 공정용 기종)"},
+            {"search_name": "NB 65-160", "model": "Grundfos NB 65-160/173 A-F-A-E-BAQE", "power_val": 22.0, "power": "22.0 kW", "rpm": "2,930 RPM", "conn": "DN 80 / DN 65", "type": "단단 엔드석션형 (고유량 이송용)"},
+            {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 A-F-A-E-BAQE", "power_val": 37.0, "power": "37.0 kW", "rpm": "2,950 RPM", "conn": "DN 100 / DN 80", "type": "단단 엔드석션형 (대유량 고유속 특화)"},
+            {"search_name": "NK 100-200", "model": "Grundfos NK 100-200/219 A-F-A-E-BAQE", "power_val": 45.0, "power": "45.0 kW", "rpm": "1,475 RPM", "conn": "DN 125 / DN 100", "type": "장축 볼류트형 (저회전수 저소음형)"},
+            {"search_name": "NK 125-250", "model": "Grundfos NK 125-250/244 A-F-A-E-BAQE", "power_val": 75.0, "power": "75.0 kW", "rpm": "1,480 RPM", "conn": "DN 150 / DN 125", "type": "장축 고중량 대형 볼류트형"},
+            {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304", "power_val": 110.0, "power": "110.0 kW", "rpm": "1,485 RPM", "conn": "DN 200 / DN 150", "type": "장축 대형 대용량 볼류트형"},
+            {"search_name": "LS 200-150", "model": "Grundfos LS 200-150", "power_val": 180.0, "power": "180.0 kW", "rpm": "1,480 RPM", "conn": "DN 200 / DN 150", "type": "플랜트 양흡입형 (대규모 메인 주간선용)"}
+        ]
+        
+        # 💡 슬라이더 효율 변화에 반응하여 동적으로 매칭 목록 슬라이싱하는 엔진
+        available_pumps = [p for p in full_pump_db if p["power_val"] >= required_power_kw]
+        
+        if available_pumps:
+            best_match_power = available_pumps[0]["power_val"]
+            recommendations = [p for p in full_pump_db if p["power_val"] == best_match_power]
             
-            with st.container(border=True):
-                st.markdown(f"**🏅 추천 대안 기종 #{idx+1}: {pump['model']}**")
-                st.markdown(f"""
-                * 분류 형태: {pump['type']}  
-                * 정격 사양: {pump['power']} | {pump['rpm']} | 구경 {pump['conn']}
-                * **{pump['guide']}**
-                """)
+            if len(recommendations) < 2:
+                higher_pumps = [p for p in full_pump_db if p["power_val"] > best_match_power]
+                if higher_pumps:
+                    recommendations.append(higher_pumps[0])
+        else:
+            recommendations = []
+
+        # 중복 에러 방지 및 고유 ID 기반 화면 카드 출력 루프
+        if not recommendations:
+            st.error("🚨 **용량 초과:** 계통의 요구 마력이 그룬포스 표준 범위를 초과했습니다. 유량을 낮추거나 배관 직경(D)을 확장해 주세요.")
+        else:
+            for idx, pump in enumerate(recommendations):
+                unique_key = f"pump_btn_{required_power_kw:.2f}_{idx}_{pump['search_name']}"
+                guide_text = f"⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) {pump['power']} 선택"
                 
-                # 📝 [기능 복원 완료] 드디어 완벽하게 바인딩된 공학적 근거 팝업 창
-                with st.expander("📝 공학적 선정 조건 및 수식 근거 보기", expanded=False):
+                with st.container(border=True):
+                    st.markdown(f"**🏅 추천 대안 기종 #{idx+1}: {pump['model']}**")
                     st.markdown(f"""
-                    **[선정 근거 리포트]**
-                    1. **유량 조건 ($Q$):** 시스템 전체 지배 노드의 총 유입량 {total_inflow:.3f} $m^3/s$에 대한 질량 보존 법칙 완벽 충족.
-                    2. **손실 조건 ($\Delta P$):** 배관 선로의 지오메트리를 Hardy Cross 기법으로 수렴 연산한 결과 도출된 총 마찰 손실압 **{total_dp_loss:,.1f} $N/m^2$**을 안정적으로 밀어낼 수 있는 수두 능력 확보.
-                    3. **동력 사양 ($W_{{pump}}$):** 수치해석 이론 동력({required_power_kw:.2f} kW)에 기계적 효율($\\eta={pump_eff}$) 및 산업용 안전 마진(약 15%)을 가산하여 정격 출력 규격 **{pump['power']}** 기종을 최종 역설계함.
-                    
-                    **[지배 방정식]**
-                    $$W_{{pump}} = \\frac{{\\Delta P \\cdot Q}}{{\\eta \\cdot 1000}} \\quad [kW]$$
+                    * 분류 형태: {pump['type']}  
+                    * 정격 사양: {pump['power']} | {pump['rpm']} | 구경 {pump['conn']}
+                    * **{guide_text}**
                     """)
-                
-                catalog_url = "https://product-selection.grundfos.com/?lc=KOR"
-                st.link_button(
-                    f"⚙️ 카탈로그 열기 (검색창에 [{pump['search_name']}] 입력)", 
-                    catalog_url,
-                    key=unique_key,
-                    use_container_width=True
-                )
+                    
+                    # 📝 [복원 완료] 실시간 동적 데이터 매칭형 공학적 선정 근거 토글 패널
+                    with st.expander("📝 공학적 선정 조건 및 수식 근거 보기", expanded=False):
+                        st.markdown(f"""
+                        **[선정 근거 리포트]**
+                        1. **유량 조건 ($Q$):** 시스템 전체 지배 노드의 총 유입량 {total_inflow:.3f} $m^3/s$에 대한 질량 보존 법칙 완벽 충족.
+                        2. **손실 조건 ($\Delta P$):** 배관 선로의 지오메트리를 Hardy Cross 기법으로 수렴 연산한 결과 도출된 총 마찰 손실압 **{total_dp_loss:,.1f} $N/m^2$**을 안정적으로 밀어낼 수 있는 수두 능력 확보.
+                        3. **동력 사양 ($W_{{pump}}$):** 수치해석 이론 동력({required_power_kw:.2f} kW)에 기계적 효율($\\eta={pump_eff:.2f}$) 및 산업용 안전 마진(약 15%)을 가산하여 정격 출력 규격 **{pump['power']}** 기종을 최종 역설계함.
+                        
+                        **[지배 방정식]**
+                        $$W_{{pump}} = \\frac{{\\Delta P \\cdot Q}}{{\\eta \\cdot 1000}} \\quad [kW]$$
+                        """)
+                    
+                    catalog_url = "https://product-selection.grundfos.com/?lc=KOR"
+                    st.link_button(
+                        f"⚙️ 카탈로그 열기 (검색창에 [{pump['search_name']}] 입력)", 
+                        catalog_url,
+                        key=unique_key,
+                        use_container_width=True
+                    )
         st.caption("ℹ️ 각 기종 아래 버튼을 누르면 Grundfos 정식 카탈로그 센터로 안전하게 연결됩니다.")
 
     st.divider()
