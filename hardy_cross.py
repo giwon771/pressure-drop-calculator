@@ -308,6 +308,16 @@ def run_hardy_cross():
             * **모델 분류:** {selected_pump['desc']}  
             * **선정 의견:** 현재 계통 요구 동력({required_power_kw:.2f} kW) 대비 적정 여유율을 확보한 상용 규격 사양입니다.
             """)
+            
+            st.write(" ")
+            st.markdown("🔗 **Grundfos 공학용 상용 자재 사양서 연동**")
+            
+            # 💡 그룬포스 프로덕트 센터 한국어 정식 설계 페이지 링크 매핑
+            st.link_button(
+                "📐 Grundfos Product Center (실제 펌프 성능 곡선 매칭)", 
+                "https://product-selection.grundfos.com/?lc=KOR",
+                use_container_width=True
+            )
         else:
             st.error("🚨 **용량 초과:** 현재 요구 동력이 상용 카탈로그 최대 범위를 초과했습니다. 유량을 줄이거나 배관 관경(D)을 넓혀 압력 저하를 유도하세요.")
 
