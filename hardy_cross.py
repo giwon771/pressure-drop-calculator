@@ -88,18 +88,25 @@ def run_hardy_cross():
             {"id": 7, "start": "F", "end": "E", "L": 300.0, "D": 0.150, "init_q": -0.035, "sx": -300.0, "sy": 250.0, "ex": 0.0, "ey": 250.0}
         ]
 
-    st.sidebar.header("[1] 시스템 가동 조건 설정")
-    control_node = st.sidebar.selectbox("펌프/밸브 제어 노드 선택", ["A", "B", "C", "D", "E", "F"])
-    total_inflow = st.sidebar.slider("시스템 총 유입 유량 (m³/s)", 0.05, 0.40, 0.125, step=0.005)
-    roughness_val = st.sidebar.number_input("관 절대 조도 (m)", value=0.00025, format="%.5f")
-    pump_eff = st.sidebar.slider("펌프 효율 (η)", 0.5, 0.9, 0.75)
-
-    # 현재 배관망의 실제 노드 물리 좌표 사전 실시간 빌드
+    # --- 💡 [개선 ①] 현재 존재하는 실제 노드 목록 실시간 실측 계산 ---
     temp_pos = {}
     for p in st.session_state.pipe_data:
         temp_pos[p['start']] = (p.get('sx', 0.0), p.get('sy', 0.0))
         temp_pos[p['end']] = (p.get('ex', 0.0), p.get('ey', 0.0))
     existing_nodes = sorted(list(temp_pos.keys()))
+
+    # 사이드바 설정 영역 (고정 배열 대신 실시간 추출된 existing_nodes 연동)
+    st.sidebar.header("[1] 시스템 가동 조건 설정")
+    
+    if len(existing_nodes) > 0:
+        control_node = st.sidebar.selectbox("펌프/밸브 제어 노드 선택", existing_nodes)
+    else:
+        st.sidebar.warning("⚠️ 등록된 노드가 없습니다.")
+        control_node = None
+        
+    total_inflow = st.sidebar.slider("시스템 총 유입 유량 (m³/s)", 0.05, 0.40, 0.125, step=0.005)
+    roughness_val = st.sidebar.number_input("관 절대 조도 (m)", value=0.00025, format="%.5f")
+    pump_eff = st.sidebar.slider("펌프 효율 (η)", 0.5, 0.9, 0.75)
 
     st.subheader("🕹️ 스마트 배관망 그래픽 배치 조립 판넬")
     
@@ -115,7 +122,7 @@ def run_hardy_cross():
             if st.button("🚀 최초 원점 배관 생성", use_container_width=True):
                 st.session_state.pipe_data.append({
                     "id": 1, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": 0.05,
-                    "sx": 0.0, "sy": 0.0, "ex": p_L, "ey": 0.0  # 길이에 맞춰 초기 좌표 빌드
+                    "sx": 0.0, "sy": 0.0, "ex": p_L, "ey": 0.0
                 })
                 st.rerun()
         else:
@@ -139,13 +146,11 @@ def run_hardy_cross():
                 p_D = st.number_input("배관 직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
                 p_q = st.number_input("초기 가정 유량 (m³/s)", value=0.020, format="%.3f")
 
-            # 💡 [개선] 사용자가 입력한 실제 길이(p_L)를 2D 좌표 스케일에 그대로 반영
             if direction == "우측으로 연장 (+X)": ex, ey = sx + p_L, sy
             elif direction == "좌측으로 연장 (-X)": ex, ey = sx - p_L, sy
             elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + p_L
             else: ex, ey = sx, sy - p_L
             
-            # 💡 [마법의 자석 스냅] 도달점이 이미 존재하는 노드면, 좌표 계산 무시하고 그 노드 위치로 찰칵 고정
             is_snap = False
             if p_end in temp_pos:
                 ex, ey = temp_pos[p_end]
@@ -160,10 +165,6 @@ def run_hardy_cross():
                         "id": new_id, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": p_q,
                         "sx": sx, "sy": sy, "ex": ex, "ey": ey
                     })
-                    if is_snap:
-                        st.success(f"🎯 자석 스냅 성공: 배관 #{new_id}가 기존 노드 {p_end} 위치에 자동으로 결속되었습니다!")
-                    else:
-                        st.success(f"🎉 가설 완료: {p_start}에서 {direction}로 {p_L}m 연장하여 노드 {p_end} 배치!")
                     st.rerun()
 
     df_pipes = pd.DataFrame(st.session_state.pipe_data)
@@ -221,14 +222,13 @@ def run_hardy_cross():
         nx.draw_networkx_nodes(G_draw, pos, node_size=600, node_color='#D6EAF8', ax=ax)
         nx.draw_networkx_labels(G_draw, pos, font_size=11, font_weight='bold', ax=ax)
         
-        if control_node in pos:
+        if control_node and (control_node in pos):
             nx.draw_networkx_nodes(G_draw, pos, nodelist=[control_node], node_size=700, node_color='#FF5733', ax=ax)
             
         edges = G_draw.edges(data=True)
         weights = [max(e[2]['weight'] * 150, 1.5) for e in edges]
         nx.draw_networkx_edges(G_draw, pos, width=weights, edge_color='#2C3E50', arrowsize=18, ax=ax)
         
-        # 배관 번호 아래에 실제 길이(L)와 수렴 유량 수치를 함께 명시하여 시각성 대폭 향상
         edge_labels = {}
         for p in pipes:
             k = (p.start, p.end) if p.Q >= 0 else (p.end, p.start)
@@ -236,10 +236,10 @@ def run_hardy_cross():
             
         nx.draw_networkx_edge_labels(G_draw, pos, edge_labels=edge_labels, font_size=8, font_color='red')
         
-        # 실제 미터 단위를 도면에 표시하기 위해 축 가시화 설정
+        # 💡 [개선 ②] 폰트 호환성을 위해 축 텍스트 라벨을 표준 영문으로 전면 변경 (ㅁㅁ 깨짐 완벽 해결)
         ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
-        ax.set_xlabel("X 축 배관 거리 실측치 (m)", fontsize=9)
-        ax.set_ylabel("Y 축 배관 거리 실측치 (m)", fontsize=9)
+        ax.set_xlabel("X-Axis Distance (m)", fontsize=10, fontweight='bold')
+        ax.set_ylabel("Y-Axis Distance (m)", fontsize=10, fontweight='bold')
         ax.grid(True, linestyle=':', alpha=0.6)
         
         plt.tight_layout()
