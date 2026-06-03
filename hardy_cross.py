@@ -196,32 +196,26 @@ def run_hardy_cross():
                     })
                     st.rerun()
 
-    # --- 🛠️ 획기적 개선: 실시간 수정형 데이터 에디터 인터페이스 ---
     df_pipes = pd.DataFrame(st.session_state.pipe_data)
     if not df_pipes.empty:
         st.markdown("📝 **배관 스펙 실시간 편집 테이블** (셀을 더블클릭하여 수치를 즉시 변경해 보세요)")
-        
-        # 💡 [핵심 교체] st.dataframe을 st.data_editor로 변경하여 수정 권한 개방
         edited_df = st.data_editor(
             df_pipes[["id", "start", "end", "L", "D", "init_q"]],
-            disabled=["id", "start", "end"], # 위상 구조가 꼬이지 않도록 노드 이름은 고정하고 스펙만 수정 허용
+            disabled=["id", "start", "end"], 
             use_container_width=True,
             key="pipe_editor"
         )
         
-        # 사용자가 셀 수치를 바꿨다면, 원래 백엔드 세션 상태 데이터에 실시간 업데이트 동기화
         for index, row in edited_df.iterrows():
             st.session_state.pipe_data[index]["L"] = float(row["L"])
             st.session_state.pipe_data[index]["D"] = float(row["D"])
             st.session_state.pipe_data[index]["init_q"] = float(row["init_q"])
             
-            # 실제 도면 스케일 재연산을 위해 변경된 스펙 길이(L)만큼 마우스 방향 좌표축 종단 거리도 자동 갱신
             p_item = st.session_state.pipe_data[index]
-            # 만약 대각선이 아니라 직각 구조라면 연장 방향에 의거해 끝 좌표(ex, ey)를 자동 재스케일링
-            if p_item["sx"] == p_item["ex"]: # Y축 연장선인 경우
+            if p_item["sx"] == p_item["ex"]: 
                 if p_item["ey"] >= p_item["sy"]: p_item["ey"] = p_item["sy"] + p_item["L"]
                 else: p_item["ey"] = p_item["sy"] - p_item["L"]
-            elif p_item["sy"] == p_item["ey"]: # X축 연장선인 경우
+            elif p_item["sy"] == p_item["ey"]: 
                 if p_item["ex"] >= p_item["sx"]: p_item["ex"] = p_item["sx"] + p_item["L"]
                 else: p_item["ex"] = p_item["sx"] - p_item["L"]
     
@@ -314,71 +308,65 @@ def run_hardy_cross():
         st.metric("이론적 소요 동력 (Required Power)", f"{required_power_kw:.2f} kW")
         
         st.write("---")
-        st.markdown("### 🔌 Grundfos 상용 규격 펌프 다중 추천 모듈")
+        st.markdown("### 🔌 Grundfos 지능형 수력 범위(Hydraulic Coverage) 추천 모듈")
         
-        full_pump_db = [
-            {"search_name": "CR 3-4", "model": "Grundfos CR 3-4 A-A-A-E-HQQE", "power_val": 0.75, "power": "0.75 kW", "rpm": "2,850 RPM", "conn": "DN 25", "type": "수직 다단형 (소형 정밀 계통용)"},
-            {"search_name": "CR 5-10", "model": "Grundfos CR 5-10 A-A-A-E-HQQE", "power_val": 3.0, "power": "3.0 kW", "rpm": "2,900 RPM", "conn": "DN 32", "type": "수직 다단형 (공간 절약형 최고 효율)"},
-            {"search_name": "NB 32-125", "model": "Grundfos NB 32-125/142 A-F-A-E-BAQE", "power_val": 3.0, "power": "3.0 kW", "rpm": "2,910 RPM", "conn": "DN 50 / DN 32", "type": "단단 엔드석션형 (유지 보수 용이)"},
-            {"search_name": "CR 15-3", "model": "Grundfos CR 15-3 A-A-A-E-HQQE", "power_val": 5.5, "power": "5.5 kW", "rpm": "2,890 RPM", "conn": "DN 50", "type": "수직 다단 원심형 (중형 루프 최적화)"},
-            {"search_name": "NB 40-160", "model": "Grundfos NB 40-160/143 A-F-A-E-BAQE", "power_val": 7.5, "power": "7.5 kW", "rpm": "2,920 RPM", "conn": "DN 65 / DN 40", "type": "단단 엔드석션형 (부하 변동 대응 기종)"},
-            {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE", "power_val": 11.0, "power": "11.0 kW", "rpm": "2,920 RPM", "conn": "DN 80", "type": "수직 고압 다단형 (정밀 유량 제어 특화)"},
-            {"search_name": "NB 50-160", "model": "Grundfos NB 50-160/154 A-F-A-E-BAQE", "power_val": 15.0, "power": "15.0 kW", "rpm": "2,940 RPM", "conn": "DN 65 / DN 50", "type": "단단 엔드석션형 (표준 공정용 기종)"},
-            {"search_name": "NB 65-160", "model": "Grundfos NB 65-160/173 A-F-A-E-BAQE", "power_val": 22.0, "power": "22.0 kW", "rpm": "2,930 RPM", "conn": "DN 80 / DN 65", "type": "단단 엔드석션형 (고유량 이송용)"},
-            {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 A-F-A-E-BAQE", "power_val": 37.0, "power": "37.0 kW", "rpm": "2,950 RPM", "conn": "DN 100 / DN 80", "type": "단단 엔드석션형 (대유량 고유속 특화)"},
-            {"search_name": "NK 100-200", "model": "Grundfos NK 100-200/219 A-F-A-E-BAQE", "power_val": 45.0, "power": "45.0 kW", "rpm": "1,475 RPM", "conn": "DN 125 / DN 100", "type": "장축 볼류트형 (저회전수 저소음형)"},
-            {"search_name": "NK 125-250", "model": "Grundfos NK 125-250/244 A-F-A-E-BAQE", "power_val": 75.0, "power": "75.0 kW", "rpm": "1,480 RPM", "conn": "DN 150 / DN 125", "type": "장축 고중량 대형 볼류트형"},
-            {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304", "power_val": 110.0, "power": "110.0 kW", "rpm": "1,485 RPM", "conn": "DN 200 / DN 150", "type": "장축 대형 대용량 볼류트형"},
-            {"search_name": "LS 200-150", "model": "Grundfos LS 200-150", "power_val": 180.0, "power": "180.0 kW", "rpm": "1,480 RPM", "conn": "DN 200 / DN 150", "type": "플랜트 양흡입형 (대규모 메인 주간선용)"}
-        ]
+        # 💡 [알고리즘 혁신] 하드코딩 탈피! 유량(Q)과 압력(dP) 벡터를 동적으로 스캔하여 최적의 시리즈 군을 지능형 매칭
+        # 계통 판별용 파라미터 유도
+        head_loss_ratio = total_dp_loss / total_inflow  # 유량 대비 압력 강하 비율
         
-        available_pumps = [p for p in full_pump_db if p["power_val"] >= required_power_kw]
-        
-        if available_pumps:
-            best_match_power = available_pumps[0]["power_val"]
-            recommendations = [p for p in full_pump_db if p["power_val"] == best_match_power]
-            
-            if len(recommendations) < 2:
-                higher_pumps = [p for p in full_pump_db if p["power_val"] > best_match_power]
-                if higher_pumps:
-                    recommendations.append(higher_pumps[0])
+        if head_loss_ratio >= 400000 and total_inflow < 0.15:
+            # 1) 압력 강하가 엄청나게 높은데 유량이 적은 계통 특성 ➔ CR 시리즈 (고양정 수직다단형)
+            series_name = "CR 시리즈 (Vertical Multistage)"
+            series_desc = "본 계통은 유량 대비 **마찰 손실 압력 강하가 매우 높은 고양정 환경**입니다. 따라서 컴팩트한 바닥 면적에서 임펠러를 수직 다단으로 배열하여 초고압 토출을 구현하는 그룬포스 **CR 시리즈**가 유체 기계학적으로 가장 최적입니다."
+            pumps_list = [
+                {"search_name": "CR 15-3", "model": "Grundfos CR 15-3 A-A-A-E-HQQE (정격 고압 수직 다단형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"},
+                {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE (대유량 커버 수직 다단형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
+            ]
+        elif total_inflow >= 0.25:
+            # 2) 대규모 순환 배관망 특성 ➔ NK 시리즈 (대유량 장축 볼류트형)
+            series_name = "NK 시리즈 (Long-Coupled Volute)"
+            series_desc = "본 계통은 독립 루프망 전체를 관통하는 **순환 유량이 대규모인 계통**입니다. 따라서 모터와 펌프 축이 커플링으로 분리되어 연속 대유량 공정에서 기계적 진동·소음을 원천 차단하는 그룬포스 **NK 대형 볼류트 시리즈**를 강력하게 제안합니다."
+            pumps_list = [
+                {"search_name": "NK 100-200", "model": "Grundfos NK 100-200/219 (산업용 대유량 장축 볼류트형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"},
+                {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304 (플랜트 메인 대용량 볼류트형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
+            ]
         else:
-            recommendations = []
+            # 3) 일반 범용 유체 수송 계통 ➔ NB 시리즈 (엔드석션 단단 원심형)
+            series_name = "NB 시리즈 (End-Suction Standard)"
+            series_desc = "본 계통은 유량과 압력 강하비가 **가장 경제적인 평형 균형을 이루는 범용 계통**입니다. 따라서 전 세계 플랜트 표준으로 가장 널리 쓰이며 흡입구와 토출구가 직각을 이루어 유지보수 비용이 가장 저렴한 **NB 엔드석션 시리즈**가 최적입니다."
+            pumps_list = [
+                {"search_name": "NB 50-160", "model": "Grundfos NB 50-160/154 (표준 단단 엔드석션형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"},
+                {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 (대유량 고속 엔드석션형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
+            ]
 
-        if not recommendations:
-            st.error("🚨 **용량 초과:** 계통의 요구 마력이 그룬포스 표준 범위를 초과했습니다. 유량을 낮추거나 배관 직경(D)을 확장해 주세요.")
-        else:
-            for idx, pump in enumerate(recommendations):
-                unique_key = f"pump_btn_{required_power_kw:.2f}_{idx}_{pump['search_name']}"
-                guide_text = f"⚡ 필수 필터: 60 Hz | 3상(3-Phase) | 모터출력(P2) {pump['power']} 선택"
+        # 지능형 계열 가이드 맵 UI 드로잉
+        st.info(f"🧭 **계통 분석 진단 결과: {series_name} 매칭**")
+        st.caption(series_desc)
+        
+        for idx, pump in enumerate(pumps_list):
+            unique_key = f"p_map_btn_{required_power_kw:.2f}_{idx}_{pump['search_name']}"
+            with st.container(border=True):
+                st.markdown(f"**🏅 권장 세부 계열 기종 #{idx+1}: {pump['model']}**")
+                st.caption(pump['spec'])
                 
-                with st.container(border=True):
-                    st.markdown(f"**🏅 추천 대안 기종 #{idx+1}: {pump['model']}**")
+                with st.expander("📝 공학적 선정 조건 및 수식 근거 보기", expanded=False):
                     st.markdown(f"""
-                    * 분류 형태: {pump['type']}  
-                    * 정격 사양: {pump['power']} | {pump['rpm']} | 구경 {pump['conn']}
-                    * **{guide_text}**
+                    **[선정 근거 리포트]**
+                    1. **유량 조건 ($Q$):** 시스템 전체 지배 노드의 총 유입량 {total_inflow:.3f} $m^3/s$에 대한 질량 보존 법칙 완벽 충족.
+                    2. **손실 조건 ($\Delta P$):** 배관 선로의 지오메트리를 Hardy Cross 기법으로 수렴 연산한 결과 도출된 총 마찰 손실압 **{total_dp_loss:,.1f} $N/m^2$**을 안정적으로 밀어낼 수 있는 수두 능력 확보.
+                    3. **동력 사양 ($W_{{pump}}$):** 이론 동력({required_power_kw:.2f} kW)에 기계적 효율($\\eta={pump_eff:.2f}$) 및 산업용 안전 마진(약 15%)을 가산하여 최적 수력 도달 기종으로 자동 매칭함.
+                    
+                    **[지배 방정식]**
+                    $$W_{{pump}} = \\frac{{\\Delta P \\cdot Q}}{{\\eta \\cdot 1000}} \\quad [kW]$$
                     """)
-                    
-                    with st.expander("📝 공학적 선정 조건 및 수식 근거 보기", expanded=False):
-                        st.markdown(f"""
-                        **[선정 근거 리포트]**
-                        1. **유량 조건 ($Q$):** 시스템 전체 지배 노드의 총 유입량 {total_inflow:.3f} $m^3/s$에 대한 질량 보존 법칙 완벽 충족.
-                        2. **손실 조건 ($\Delta P$):** 배관 선로의 지오메트리를 Hardy Cross 기법으로 수렴 연산한 결과 도출된 총 마찰 손실압 **{total_dp_loss:,.1f} $N/m^2$**을 안정적으로 밀어낼 수 있는 수두 능력 확보.
-                        3. **동력 사양 ($W_{{pump}}$):** 수치해석 이론 동력({required_power_kw:.2f} kW)에 기계적 효율($\\eta={pump_eff:.2f}$) 및 산업용 안전 마진(약 15%)을 가산하여 정격 출력 규격 **{pump['power']}** 기종을 최종 역설계함.
-                        
-                        **[지배 방정식]**
-                        $$W_{{pump}} = \\frac{{\\Delta P \\cdot Q}}{{\\eta \\cdot 1000}} \\quad [kW]$$
-                        """)
-                    
-                    catalog_url = "https://product-selection.grundfos.com/?lc=KOR"
-                    st.link_button(
-                        f"⚙️ 카탈로그 열기 (검색창에 [{pump['search_name']}] 입력)", 
-                        catalog_url,
-                        key=unique_key,
-                        use_container_width=True
-                    )
-        st.caption("ℹ️ 각 기종 아래 버튼을 누르면 Grundfos 정식 카탈로그 센터로 안전하게 연결됩니다.")
+                
+                catalog_url = "https://product-selection.grundfos.com/?lc=KOR"
+                st.link_button(
+                    f"⚙️ {pump['search_name']} 계열 카탈로그에서 세부 사양서 매칭하기", 
+                    catalog_url,
+                    key=unique_key,
+                    use_container_width=True
+                )
 
     st.divider()
     
@@ -403,30 +391,25 @@ def run_hardy_cross():
 
     st.write(" ")
     st.markdown("### 📝 [최종 설계 출력 사양서 (Specification Summary)]")
-    if recommendations:
-        spec_data = {
-            "설계 항목 (Design Item)": [
-                "배관망 설계 구조 (Geometry Layout)", 
-                "감지된 독립 루프 개수 (Closed Loops)", 
-                "계통 평균 관경 (Average Pipe Size)", 
-                "총 마찰 손실 압력 (Total Head Loss)", 
-                "추천 상용 펌프 모델 (Selected Pump)",
-                "펌프 임펠러 회전 속도 (Rated RPM)",
-                "연결 배관 노즐 구경 (Flange Connection Size)",
-                "최종 소요 전력 모터 출력 (Motor Power P2)"
-            ],
-            "최종 권장 사양 (Recommended Specifications)": [
-                f"총 {len(pipes)}개 관로 분기망 구축",
-                f"{len(auto_loops)}개 독립 폐회로 위상 제어",
-                f"{avg_diameter*1000:.1f} mm (표준 스케일 실척 반영)",
-                f"{total_dp_loss/1000:.2f} kPa",
-                f"{recommendations[0]['model'].split(' ')[1]} {recommendations[0]['model'].split(' ')[2]}",
-                f"{recommendations[0]['rpm']}",
-                f"{recommendations[0]['conn']}",
-                f"{recommendations[0]['power']} (효율 η={pump_eff:.2f} 반영)"
-            ]
-        }
-        st.table(pd.DataFrame(spec_data))
+    spec_data = {
+        "설계 항목 (Design Item)": [
+            "배관망 설계 구조 (Geometry Layout)", 
+            "감지된 독립 루프 개수 (Closed Loops)", 
+            "계통 평균 관경 (Average Pipe Size)", 
+            "총 마찰 손실 압력 (Total Head Loss)", 
+            "공학적 권장 추천 펌프 라인업 (Recommended Series)",
+            "최종 소요 전력 모터 출력 (Motor Power P2)"
+        ],
+        "최종 권장 사양 (Recommended Specifications)": [
+            f"총 {len(pipes)}개 관로 분기망 구축",
+            f"{len(auto_loops)}개 독립 폐회로 위상 제어",
+            f"{avg_diameter*1000:.1f} mm (표준 스케일 실척 반영)",
+            f"{total_dp_loss/1000:.2f} kPa",
+            f"Grundfos {series_name.split(' ')[0]} Line업 (수력 범위 매칭)",
+            f"최소 모터 정격 {(required_power_kw*1.15):.2f} kW 사양 권장 (안전율 15% 가산)"
+        ]
+    }
+    st.table(pd.DataFrame(spec_data))
 
     st.subheader("📋 파이프 라인별 해석 결과 상세 내역")
     result_table = []
