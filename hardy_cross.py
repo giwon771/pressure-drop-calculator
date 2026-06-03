@@ -35,12 +35,11 @@ class Pipe:
     def get_dp_over_q(self):
         return abs(self.get_delta_p() / self.Q) if self.Q != 0 else 0
 
-    # 💡 [교재 예제 융합] 1000m(1km)당 압력 강하 환산 수식 (Pa -> kPa/km)
     def get_delta_p_per_km(self):
         total_pa = abs(self.get_delta_p())
         if self.L == 0: return 0
         pa_per_m = total_pa / self.L
-        kpa_per_km = (pa_per_m * 1000) / 1000  # Pa/m와 kPa/km는 수치적으로 동일함
+        kpa_per_km = (pa_per_m * 1000) / 1000  
         return kpa_per_km
 
 # --- 2. 동적 하디 크로스 수치 해석 엔진 ---
@@ -197,9 +196,34 @@ def run_hardy_cross():
                     })
                     st.rerun()
 
+    # --- 🛠️ 획기적 개선: 실시간 수정형 데이터 에디터 인터페이스 ---
     df_pipes = pd.DataFrame(st.session_state.pipe_data)
     if not df_pipes.empty:
-        st.dataframe(df_pipes[["id", "start", "end", "L", "D", "init_q"]], use_container_width=True)
+        st.markdown("📝 **배관 스펙 실시간 편집 테이블** (셀을 더블클릭하여 수치를 즉시 변경해 보세요)")
+        
+        # 💡 [핵심 교체] st.dataframe을 st.data_editor로 변경하여 수정 권한 개방
+        edited_df = st.data_editor(
+            df_pipes[["id", "start", "end", "L", "D", "init_q"]],
+            disabled=["id", "start", "end"], # 위상 구조가 꼬이지 않도록 노드 이름은 고정하고 스펙만 수정 허용
+            use_container_width=True,
+            key="pipe_editor"
+        )
+        
+        # 사용자가 셀 수치를 바꿨다면, 원래 백엔드 세션 상태 데이터에 실시간 업데이트 동기화
+        for index, row in edited_df.iterrows():
+            st.session_state.pipe_data[index]["L"] = float(row["L"])
+            st.session_state.pipe_data[index]["D"] = float(row["D"])
+            st.session_state.pipe_data[index]["init_q"] = float(row["init_q"])
+            
+            # 실제 도면 스케일 재연산을 위해 변경된 스펙 길이(L)만큼 마우스 방향 좌표축 종단 거리도 자동 갱신
+            p_item = st.session_state.pipe_data[index]
+            # 만약 대각선이 아니라 직각 구조라면 연장 방향에 의거해 끝 좌표(ex, ey)를 자동 재스케일링
+            if p_item["sx"] == p_item["ex"]: # Y축 연장선인 경우
+                if p_item["ey"] >= p_item["sy"]: p_item["ey"] = p_item["sy"] + p_item["L"]
+                else: p_item["ey"] = p_item["sy"] - p_item["L"]
+            elif p_item["sy"] == p_item["ey"]: # X축 연장선인 경우
+                if p_item["ex"] >= p_item["sx"]: p_item["ex"] = p_item["sx"] + p_item["L"]
+                else: p_item["ex"] = p_item["sx"] - p_item["L"]
     
     reset_col1, reset_col2 = st.columns(2)
     if reset_col1.button("🔄 교재 예제 데이터로 초기화", use_container_width=True):
@@ -292,7 +316,6 @@ def run_hardy_cross():
         st.write("---")
         st.markdown("### 🔌 Grundfos 상용 규격 펌프 다중 추천 모듈")
         
-        # 그룬포스 모터 용량 정격 카탈로그 DB 선언
         full_pump_db = [
             {"search_name": "CR 3-4", "model": "Grundfos CR 3-4 A-A-A-E-HQQE", "power_val": 0.75, "power": "0.75 kW", "rpm": "2,850 RPM", "conn": "DN 25", "type": "수직 다단형 (소형 정밀 계통용)"},
             {"search_name": "CR 5-10", "model": "Grundfos CR 5-10 A-A-A-E-HQQE", "power_val": 3.0, "power": "3.0 kW", "rpm": "2,900 RPM", "conn": "DN 32", "type": "수직 다단형 (공간 절약형 최고 효율)"},
@@ -355,10 +378,10 @@ def run_hardy_cross():
                         key=unique_key,
                         use_container_width=True
                     )
+        st.caption("ℹ️ 각 기종 아래 버튼을 누르면 Grundfos 정식 카탈로그 센터로 안전하게 연결됩니다.")
 
     st.divider()
     
-    # 💡 [교재 예제 6.6 구조 완전 복합 융합] 배관 선로 종합 진단 및 진동 소음 예측 피드백 룸
     st.subheader("🧐 열유체 공학적 설계 종합 진단 소견 (진동/소음 및 캐비테이션 예측)")
     avg_diameter = sum(p.D for p in pipes) / len(pipes)
     
@@ -371,7 +394,6 @@ def run_hardy_cross():
         else:
             st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. 교수님이 강조하신 '전체 압력 저하'를 위해 직경(D)을 확장하는 설계 피드백을 권장합니다.")
 
-    # 💡 [교재 예제 융합] 1000m당 압력강하 연산 기반 진동/소음 경고 모듈 레이아웃 추가
     high_vibration_pipes = [p for p in pipes if p.get_delta_p_per_km() >= 557.0]
     if high_vibration_pipes:
         bad_ids = ", ".join([f"Pipe #{p.id}" for p in high_vibration_pipes])
@@ -379,7 +401,6 @@ def run_hardy_cross():
     else:
         st.info("✅ **진동/소음 안전성 검증:** 모든 배관 선로의 1000m당 압력 손실이 기준치(557 kPa/km) 미만으로 유지되어 매우 정숙하고 안정적인 유동 거동이 보장됩니다.")
 
-    # 💡 [교재 장점의 극대화] 예제 6.6의 '6. 결과의 요약' 포맷을 100% 추종하는 엔지니어링 최종 사양 추천서 컴포넌트 임베딩
     st.write(" ")
     st.markdown("### 📝 [최종 설계 출력 사양서 (Specification Summary)]")
     if recommendations:
@@ -407,11 +428,9 @@ def run_hardy_cross():
         }
         st.table(pd.DataFrame(spec_data))
 
-    # 상세 파이프 내역 테이블 출력 (1000m당 압력 손실치 열 컬럼 추가)
     st.subheader("📋 파이프 라인별 해석 결과 상세 내역")
     result_table = []
     for p in pipes:
-        # 소음 위험 한계치 도달 여부 텍스트 매핑
         vib_status = "⚠️ 위험" if p.get_delta_p_per_km() >= 557.0 else "✅ 안전"
         result_table.append({
             "배관 번호": f"Pipe {p.id}",
