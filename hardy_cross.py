@@ -218,6 +218,23 @@ def run_hardy_cross():
             elif p_item["sy"] == p_item["ey"]: 
                 if p_item["ex"] >= p_item["sx"]: p_item["ex"] = p_item["sx"] + p_item["L"]
                 else: p_item["ex"] = p_item["sx"] - p_item["L"]
+
+        # --- 🗑️ [신규 기능 통합] 지정 배관 라인 타겟 개별 삭제 패널 ---
+        with st.expander("❌ 불필요한 특정 배관라인 선택하여 제거하기", expanded=False):
+            # 현재 살아있는 파이프 ID 리스트 추출
+            pipe_ids = [p["id"] for p in st.session_state.pipe_data]
+            pipe_to_delete = st.selectbox("철거할 파이프 번호 선택", pipe_ids, format_func=lambda x: f"Pipe #{x}")
+            
+            if st.button("🚨 선택한 배관라인 즉시 철거", use_container_width=True):
+                # 선택한 ID 항목만 쏙 빼고 데이터 재구성
+                st.session_state.pipe_data = [p for p in st.session_state.pipe_data if p["id"] != pipe_to_delete]
+                
+                # ID 순번 꼬임 방지를 위한 1번부터 순차 재정렬 작업(Index Re-ordering)
+                for idx, p in enumerate(st.session_state.pipe_data):
+                    p["id"] = idx + 1
+                    
+                st.toast(f"Pipe #{pipe_to_delete} 선로가 안전하게 철거되었습니다.")
+                st.rerun()
     
     reset_col1, reset_col2 = st.columns(2)
     if reset_col1.button("🔄 교재 예제 데이터로 초기화", use_container_width=True):
@@ -310,12 +327,9 @@ def run_hardy_cross():
         st.write("---")
         st.markdown("### 🔌 Grundfos 지능형 수력 범위(Hydraulic Coverage) 추천 모듈")
         
-        # 💡 [알고리즘 혁신] 하드코딩 탈피! 유량(Q)과 압력(dP) 벡터를 동적으로 스캔하여 최적의 시리즈 군을 지능형 매칭
-        # 계통 판별용 파라미터 유도
-        head_loss_ratio = total_dp_loss / total_inflow  # 유량 대비 압력 강하 비율
+        head_loss_ratio = total_dp_loss / total_inflow  
         
         if head_loss_ratio >= 400000 and total_inflow < 0.15:
-            # 1) 압력 강하가 엄청나게 높은데 유량이 적은 계통 특성 ➔ CR 시리즈 (고양정 수직다단형)
             series_name = "CR 시리즈 (Vertical Multistage)"
             series_desc = "본 계통은 유량 대비 **마찰 손실 압력 강하가 매우 높은 고양정 환경**입니다. 따라서 컴팩트한 바닥 면적에서 임펠러를 수직 다단으로 배열하여 초고압 토출을 구현하는 그룬포스 **CR 시리즈**가 유체 기계학적으로 가장 최적입니다."
             pumps_list = [
@@ -323,7 +337,6 @@ def run_hardy_cross():
                 {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE (대유량 커버 수직 다단형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
             ]
         elif total_inflow >= 0.25:
-            # 2) 대규모 순환 배관망 특성 ➔ NK 시리즈 (대유량 장축 볼류트형)
             series_name = "NK 시리즈 (Long-Coupled Volute)"
             series_desc = "본 계통은 독립 루프망 전체를 관통하는 **순환 유량이 대규모인 계통**입니다. 따라서 모터와 펌프 축이 커플링으로 분리되어 연속 대유량 공정에서 기계적 진동·소음을 원천 차단하는 그룬포스 **NK 대형 볼류트 시리즈**를 강력하게 제안합니다."
             pumps_list = [
@@ -331,7 +344,6 @@ def run_hardy_cross():
                 {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304 (플랜트 메인 대용량 볼류트형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
             ]
         else:
-            # 3) 일반 범용 유체 수송 계통 ➔ NB 시리즈 (엔드석션 단단 원심형)
             series_name = "NB 시리즈 (End-Suction Standard)"
             series_desc = "본 계통은 유량과 압력 강하비가 **가장 경제적인 평형 균형을 이루는 범용 계통**입니다. 따라서 전 세계 플랜트 표준으로 가장 널리 쓰이며 흡입구와 토출구가 직각을 이루어 유지보수 비용이 가장 저렴한 **NB 엔드석션 시리즈**가 최적입니다."
             pumps_list = [
@@ -339,7 +351,6 @@ def run_hardy_cross():
                 {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 (대유량 고속 엔드석션형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
             ]
 
-        # 지능형 계열 가이드 맵 UI 드로잉
         st.info(f"🧭 **계통 분석 진단 결과: {series_name} 매칭**")
         st.caption(series_desc)
         
@@ -394,7 +405,7 @@ def run_hardy_cross():
     spec_data = {
         "설계 항목 (Design Item)": [
             "배관망 설계 구조 (Geometry Layout)", 
-            "감지된 독립 루프 개수 (Closed Loops)", 
+            "감지된 독립 루프개수 (Closed Loops)", 
             "계통 평균 관경 (Average Pipe Size)", 
             "총 마찰 손실 압력 (Total Head Loss)", 
             "공학적 권장 추천 펌프 라인업 (Recommended Series)",
