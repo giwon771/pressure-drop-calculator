@@ -35,6 +35,14 @@ class Pipe:
     def get_dp_over_q(self):
         return abs(self.get_delta_p() / self.Q) if self.Q != 0 else 0
 
+    # 💡 [교재 예제 융합] 1000m(1km)당 압력 강하 환산 수식 (Pa -> kPa/km)
+    def get_delta_p_per_km(self):
+        total_pa = abs(self.get_delta_p())
+        if self.L == 0: return 0
+        pa_per_m = total_pa / self.L
+        kpa_per_km = (pa_per_m * 1000) / 1000  # Pa/m와 kPa/km는 수치적으로 동일함
+        return kpa_per_km
+
 # --- 2. 동적 하디 크로스 수치 해석 엔진 ---
 def run_dynamic_hardy_cross(pipes, loops_nodes, max_iter=30, tolerance=1e-5):
     iteration_history = []
@@ -284,7 +292,7 @@ def run_hardy_cross():
         st.write("---")
         st.markdown("### 🔌 Grundfos 상용 규격 펌프 다중 추천 모듈")
         
-        # 💡 그룬포스 모터 용량 정격 카탈로그 DB 선언
+        # 그룬포스 모터 용량 정격 카탈로그 DB 선언
         full_pump_db = [
             {"search_name": "CR 3-4", "model": "Grundfos CR 3-4 A-A-A-E-HQQE", "power_val": 0.75, "power": "0.75 kW", "rpm": "2,850 RPM", "conn": "DN 25", "type": "수직 다단형 (소형 정밀 계통용)"},
             {"search_name": "CR 5-10", "model": "Grundfos CR 5-10 A-A-A-E-HQQE", "power_val": 3.0, "power": "3.0 kW", "rpm": "2,900 RPM", "conn": "DN 32", "type": "수직 다단형 (공간 절약형 최고 효율)"},
@@ -301,7 +309,6 @@ def run_hardy_cross():
             {"search_name": "LS 200-150", "model": "Grundfos LS 200-150", "power_val": 180.0, "power": "180.0 kW", "rpm": "1,480 RPM", "conn": "DN 200 / DN 150", "type": "플랜트 양흡입형 (대규모 메인 주간선용)"}
         ]
         
-        # 💡 슬라이더 효율 변화에 반응하여 동적으로 매칭 목록 슬라이싱하는 엔진
         available_pumps = [p for p in full_pump_db if p["power_val"] >= required_power_kw]
         
         if available_pumps:
@@ -315,7 +322,6 @@ def run_hardy_cross():
         else:
             recommendations = []
 
-        # 중복 에러 방지 및 고유 ID 기반 화면 카드 출력 루프
         if not recommendations:
             st.error("🚨 **용량 초과:** 계통의 요구 마력이 그룬포스 표준 범위를 초과했습니다. 유량을 낮추거나 배관 직경(D)을 확장해 주세요.")
         else:
@@ -331,7 +337,6 @@ def run_hardy_cross():
                     * **{guide_text}**
                     """)
                     
-                    # 📝 [복원 완료] 실시간 동적 데이터 매칭형 공학적 선정 근거 토글 패널
                     with st.expander("📝 공학적 선정 조건 및 수식 근거 보기", expanded=False):
                         st.markdown(f"""
                         **[선정 근거 리포트]**
@@ -350,11 +355,11 @@ def run_hardy_cross():
                         key=unique_key,
                         use_container_width=True
                     )
-        st.caption("ℹ️ 각 기종 아래 버튼을 누르면 Grundfos 정식 카탈로그 센터로 안전하게 연결됩니다.")
 
     st.divider()
     
-    st.subheader("🧐 열유체 공학적 설계 종합 진단 소견")
+    # 💡 [교재 예제 6.6 구조 완전 복합 융합] 배관 선로 종합 진단 및 진동 소음 예측 피드백 룸
+    st.subheader("🧐 열유체 공학적 설계 종합 진단 소견 (진동/소음 및 캐비테이션 예측)")
     avg_diameter = sum(p.D for p in pipes) / len(pipes)
     
     col_eval1, col_eval2 = st.columns(2)
@@ -362,18 +367,59 @@ def run_hardy_cross():
         st.metric("배관망 평균 관경 (Avg D)", f"{avg_diameter:.3f} m")
     with col_eval2:
         if total_dp_loss < 50000:
-            st.success(f"🎉 **설계 합격 (압력 최적화 달성):** 현재 전체 압력 손실치({total_dp_loss:,.1f} N/m²)가 경제적 안정 범위 내에 있습니다. 배관 관경과 지오메트리 배치가 유체 마찰 저항을 억제하는 데 효과적으로 설계되었습니다.")
+            st.success(f"🎉 **설계 합격 (압력 최적화 달성):** 현재 전체 압력 손실치({total_dp_loss:,.1f} N/m²)가 경제적 안정 범위 내에 있습니다. 유체 마찰 저항이 효과적으로 억제되었습니다.")
         else:
-            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 현재 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. 교수님이 강조하신 **'전체 압력 저하'**를 달성하기 위해, 손실이 가장 큰 배관 라인의 직경(D)을 키우거나 유량을 조절하는 피드백 루프 설계를 추천합니다.")
+            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. 교수님이 강조하신 '전체 압력 저하'를 위해 직경(D)을 확장하는 설계 피드백을 권장합니다.")
 
+    # 💡 [교재 예제 융합] 1000m당 압력강하 연산 기반 진동/소음 경고 모듈 레이아웃 추가
+    high_vibration_pipes = [p for p in pipes if p.get_delta_p_per_km() >= 557.0]
+    if high_vibration_pipes:
+        bad_ids = ", ".join([f"Pipe #{p.id}" for p in high_vibration_pipes])
+        st.error(f"🚨 **배관 파괴 및 과도한 진동 경고:** 현재 계통 내 [{bad_ids}] 선로의 단위 압력 강하가 교재 소음 발생 기준치(557 kPa/km)를 초과했습니다! 장기 가동 시 허용 불가능한 공진 및 구조 결함이 예상되므로 관경 확장이 시급합니다.")
+    else:
+        st.info("✅ **진동/소음 안전성 검증:** 모든 배관 선로의 1000m당 압력 손실이 기준치(557 kPa/km) 미만으로 유지되어 매우 정숙하고 안정적인 유동 거동이 보장됩니다.")
+
+    # 💡 [교재 장점의 극대화] 예제 6.6의 '6. 결과의 요약' 포맷을 100% 추종하는 엔지니어링 최종 사양 추천서 컴포넌트 임베딩
+    st.write(" ")
+    st.markdown("### 📝 [최종 설계 출력 사양서 (Specification Summary)]")
+    if recommendations:
+        spec_data = {
+            "설계 항목 (Design Item)": [
+                "배관망 설계 구조 (Geometry Layout)", 
+                "감지된 독립 루프 개수 (Closed Loops)", 
+                "계통 평균 관경 (Average Pipe Size)", 
+                "총 마찰 손실 압력 (Total Head Loss)", 
+                "추천 상용 펌프 모델 (Selected Pump)",
+                "펌프 임펠러 회전 속도 (Rated RPM)",
+                "연결 배관 노즐 구경 (Flange Connection Size)",
+                "최종 소요 전력 모터 출력 (Motor Power P2)"
+            ],
+            "최종 권장 사양 (Recommended Specifications)": [
+                f"총 {len(pipes)}개 관로 분기망 구축",
+                f"{len(auto_loops)}개 독립 폐회로 위상 제어",
+                f"{avg_diameter*1000:.1f} mm (표준 스케일 실척 반영)",
+                f"{total_dp_loss/1000:.2f} kPa",
+                f"{recommendations[0]['model'].split(' ')[1]} {recommendations[0]['model'].split(' ')[2]}",
+                f"{recommendations[0]['rpm']}",
+                f"{recommendations[0]['conn']}",
+                f"{recommendations[0]['power']} (효율 η={pump_eff:.2f} 반영)"
+            ]
+        }
+        st.table(pd.DataFrame(spec_data))
+
+    # 상세 파이프 내역 테이블 출력 (1000m당 압력 손실치 열 컬럼 추가)
     st.subheader("📋 파이프 라인별 해석 결과 상세 내역")
     result_table = []
     for p in pipes:
+        # 소음 위험 한계치 도달 여부 텍스트 매핑
+        vib_status = "⚠️ 위험" if p.get_delta_p_per_km() >= 557.0 else "✅ 안전"
         result_table.append({
             "배관 번호": f"Pipe {p.id}",
             "연결 노드": f"{p.start} ➔ {p.end}",
             "최종 유량 (m³/s)": f"{p.Q:.4f}",
             "마찰 계수 (f)": f"{p.get_friction_factor():.4f}",
-            "압력 강하 (N/m²)": f"{p.get_delta_p():,.1f}"
+            "압력 강하 (N/m²)": f"{p.get_delta_p():,.1f}",
+            "단위 압력 손실 (kPa/km)": f"{p.get_delta_p_per_km():.2f}",
+            "진동/소음 예측": vib_status
         })
     st.dataframe(result_table, use_container_width=True)
