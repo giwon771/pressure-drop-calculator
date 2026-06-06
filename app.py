@@ -12,7 +12,6 @@ st.set_page_config(
 
 # --- 2. 사이드바 메인 제어 내비게이션 ---
 st.sidebar.title("🛠️ 유체 시스템 플랫폼 v9.0")
-st.sidebar.markdown("### Capstone Design Project")
 
 # 프로젝트 선택 라디오 버튼
 project_mode = st.sidebar.radio(
