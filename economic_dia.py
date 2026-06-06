@@ -160,10 +160,15 @@ def run_economic_dia():
             st.latex(rf"D_{{opt}} = \left[ \frac{{40 \cdot {f_opt:.4f} \cdot {m_dot:.2f}^3 \cdot {c2/1000:.6f} \cdot {t_year}}}{{{n_exponent} \cdot ({ann_a:.3f} + {ann_b:.2f}) \cdot (1 + {cost_f:.1f}) \cdot {c1_value} \cdot {eff_pump} \cdot \pi^2 \cdot {rho:.0f}^2}} \right]^{{\frac{{1}}{{{n_exponent}+5}}}}")
             st.write(f"- 수렴 Reynolds No: {re_opt:.1f} | 수렴 마찰계수(f): {f_opt:.4f}")
 
-        # --- 화면 출력 2: Darby Figure 4.16 비용 최적화 곡선 ---
-        st.subheader("📊 2. 관경 변화에 따른 비용 최적화 곡선 (Darby Fig 4.16 구현)")
+        # --- 화면 출력 2:  비용 최적화 곡선 ---
+        st.subheader("📊 2. 관경 변화에 따른 비용 최적화 곡선")
         
-        d_space = np.linspace(0.005, 0.10, 200)
+        # [동적 스케일링 로직 추가] 
+        # 최적 지름이 작을 때는 최소 15mm, 클 때는 d_opt_m의 1.5배까지 가로축을 자동 확장합니다.
+        max_d_view = max(0.015, d_opt_m * 1.5)
+        min_d_view = max(0.002, d_opt_m * 0.1) # 최적점 왼쪽 유동 변화도 볼 수 있도록 하한 설정
+        
+        d_space = np.linspace(min_d_view, max_d_view, 250)
         pipe_costs_line = []
         op_costs_line = []
         total_costs_line = []
@@ -185,6 +190,7 @@ def run_economic_dia():
         fig.add_trace(go.Scatter(x=d_space*1000, y=op_costs_line, name="Operating Cost/L (동력 운영비)", line=dict(dash='dot', color='#ef4444')))
         fig.add_trace(go.Scatter(x=d_space*1000, y=total_costs_line, name="Total Cost/L (총 연간 비용)", line=dict(width=3, color='#11caa0')))
         
+        # 이론적 최적점 마커
         fig.add_trace(go.Scatter(
             x=[d_opt_m*1000], 
             y=[(ann_a + ann_b) * (1 + cost_f) * c1_value * (d_opt_m**n_exponent) + (8 * f_opt * (m_dot**3) / (math.pi**2 * rho**2 * d_opt_m**5)) * (c2 / 1000) * t_year / eff_pump],
@@ -193,7 +199,8 @@ def run_economic_dia():
 
         fig.update_layout(
             xaxis=dict(title="Pipe Inside Diameter (mm)", gridcolor="#e2e8f0"),
-            yaxis=dict(title="Installed Cost / Length ($/yr·m)", range=[0, max(total_costs_line)*0.5], gridcolor="#e2e8f0"),
+            # Y축의 가시성 범위도 변동폭에 맞춰 유연하게 상한선 자동 조정
+            yaxis=dict(title="Installed Cost / Length ($/yr·m)", range=[0, (fixed_cost/L)*2.5 if 'fixed_cost' in locals() else max(total_costs_line)*0.3], gridcolor="#e2e8f0"),
             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
             height=450, margin=dict(l=10, r=10, t=10, b=10), legend=dict(x=0.6, y=0.9)
         )
