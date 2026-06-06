@@ -51,7 +51,7 @@ def solve_economic_diameter(rho, mu, m_dot, c1, c2, t, n, a, b, f_multiplier, et
 
 # --- 3. 메인 실행 함수 (app.py에서 호출됨) ---
 def run_economic_dia():
-    st.markdown("### Darby 예제 4.7 기반 상용 규격 의사결정 및 연속 비용 곡선 해석 시스템")
+    st.markdown("### 상용 규격 의사결정 및 연속 비용 곡선 해석 시스템")
 
     f_db = load_json('fluids_db.json')
     p_db = load_json('pipe_db.json')
