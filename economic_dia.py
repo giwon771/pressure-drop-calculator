@@ -163,7 +163,7 @@ def run_economic_dia():
         # --- 화면 출력 2: Darby Figure 4.16 비용 최적화 곡선 ---
         st.subheader("📊 2. 관경 변화에 따른 비용 최적화 곡선 (Darby Fig 4.16 구현)")
         
-        d_space = np.linspace(0.015, 0.10, 200)
+        d_space = np.linspace(0.005, 0.10, 200)
         pipe_costs_line = []
         op_costs_line = []
         total_costs_line = []
