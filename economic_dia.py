@@ -97,7 +97,7 @@ def run_economic_dia():
         pipe_info = next(p for p in p_db['pipe_standards'] if p['nps'] == sel_nps)
         sel_sch = st.selectbox("Schedule 선택", list(pipe_info['schedules'].keys()))
         d_val = st.number_input("관 안지름(ID)", value=pipe_info['schedules'][sel_sch]['id'])
-        d_unit = d_unit = st.selectbox("직경 단위", ["mm", "m", "inch"])
+        d_unit = st.selectbox("직경 단위", ["mm", "m", "inch"])
         l_val = st.number_input("배관 직선 거리", value=10.0, help="교수님 피드백 반영: 단위 혼동 방지를 위해 기호 L 삭제")
         l_unit = st.selectbox("거리 단위", ["m", "km"])
 
@@ -123,7 +123,7 @@ def run_economic_dia():
         # [단계 1] 이론적 D_opt 계산
         d_opt_m, f_opt, re_opt = solve_economic_diameter(rho, mu, m_dot, c1_value, c2, t_year, n_exponent, ann_a, ann_b, cost_f, eff_pump, 0.000046)
 
-        # [단계 2] 예제 4.7 실제 비용 비교식 기반 상용 규격 추천 (Trade-off 판정) [cite: 11, 12, 13, 14, 15, 16, 17]
+        # [단계 2] 예제 4.7 실제 비용 비교식 기반 상용 규격 추천 (Trade-off 판정)
         pipes_with_cost = []
         for p in p_db['pipe_standards']:
             if sel_sch in p['schedules']:
@@ -133,17 +133,15 @@ def run_economic_dia():
                 re_p = (rho * v_p * db_id) / mu
                 f_p = (-1.8 * math.log10((0.000046/db_id/3.7)**1.11 + (6.9/re_p)))**-2 if re_p > 2300 else 64/re_p
                 
-                # 교재 공식 식 (4.10) 자본설치비 및 동력운영비 완벽 변환 [cite: 14, 17]
-                pipe_cost_per_l = (ann_a + ann_b) * (1 + cost_f) * c1_value * (db_id**n_exponent) [cite: 14, 17]
-                op_cost_per_l = (8 * f_p * (m_dot**3) / (math.pi**2 * rho**2 * db_id**5)) * (c2 / 1000) * t_year / eff_pump [cite: 14, 17]
-                total_cost_per_l = pipe_cost_per_l + op_cost_per_l [cite: 13, 14, 17]
+                pipe_cost_per_l = (ann_a + ann_b) * (1 + cost_f) * c1_value * (db_id**n_exponent)
+                op_cost_per_l = (8 * f_p * (m_dot**3) / (math.pi**2 * rho**2 * db_id**5)) * (c2 / 1000) * t_year / eff_pump
+                total_cost_per_l = pipe_cost_per_l + op_cost_per_l
                 
                 pipes_with_cost.append({
                     "nps": p['nps'], "id": db_id, "total_cost_per_l": total_cost_per_l,
                     "pipe_cost": pipe_cost_per_l * L, "op_cost": op_cost_per_l * L
                 })
                 
-        # 이론적 최적경을 감싸는 인접 상하위 규격 필터링 후 실제 비용이 낮은 배관 매칭 [cite: 5, 11, 36]
         pipes_with_cost.sort(key=lambda x: abs(x['id'] - d_opt_m))
         candidate_pipes = pipes_with_cost[:2] 
         candidate_pipes.sort(key=lambda x: x['total_cost_per_l']) 
@@ -151,8 +149,6 @@ def run_economic_dia():
         recommended_pipe = candidate_pipes[0]
         D_real = recommended_pipe['id']
         v_real = (4 * m_dot) / (rho * math.pi * D_real**2)
-        op_cost = recommended_pipe['op_cost']
-        fixed_cost = recommended_pipe['pipe_cost']
         tac = recommended_pipe['total_cost_per_l'] * L
 
         st.divider()
@@ -164,10 +160,10 @@ def run_economic_dia():
             st.latex(rf"D_{{opt}} = \left[ \frac{{40 \cdot {f_opt:.4f} \cdot {m_dot:.2f}^3 \cdot {c2/1000:.6f} \cdot {t_year}}}{{{n_exponent} \cdot ({ann_a:.3f} + {ann_b:.2f}) \cdot (1 + {cost_f:.1f}) \cdot {c1_value} \cdot {eff_pump} \cdot \pi^2 \cdot {rho:.0f}^2}} \right]^{{\frac{{1}}{{{n_exponent}+5}}}}")
             st.write(f"- 수렴 Reynolds No: {re_opt:.1f} | 수렴 마찰계수(f): {f_opt:.4f}")
 
-        # --- 화면 출력 2: Darby Figure 4.16 비용 최적화 곡선 (Plotly 적용 완료!)  ---
-        st.subheader("📊 2. 관경 변화에 따른 비용 최적화 곡선 (Darby Fig 4.16 구현) ")
+        # --- 화면 출력 2: Darby Figure 4.16 비용 최적화 곡선 ---
+        st.subheader("📊 2. 관경 변화에 따른 비용 최적화 곡선 (Darby Fig 4.16 구현)")
         
-        d_space = np.linspace(0.015, 0.10, 200) [cite: 43]
+        d_space = np.linspace(0.015, 0.10, 200)
         pipe_costs_line = []
         op_costs_line = []
         total_costs_line = []
@@ -177,19 +173,18 @@ def run_economic_dia():
             re_s = (rho * v_s * d_s) / mu
             f_s = (-1.8 * math.log10((0.000046/d_s/3.7)**1.11 + (6.9/re_s)))**-2 if re_s > 2300 else 64/re_s
             
-            p_c = (ann_a + ann_b) * (1 + cost_f) * c1_value * (d_s**n_exponent) [cite: 48]
-            o_c = (8 * f_s * (m_dot**3) / (math.pi**2 * rho**2 * d_s**5)) * (c2 / 1000) * t_year / eff_pump [cite: 51]
+            p_c = (ann_a + ann_b) * (1 + cost_f) * c1_value * (d_s**n_exponent)
+            o_c = (8 * f_s * (m_dot**3) / (math.pi**2 * rho**2 * d_s**5)) * (c2 / 1000) * t_year / eff_pump
             
-            pipe_costs_line.append(p_c) [cite: 44]
-            op_costs_line.append(o_c) [cite: 49]
-            total_costs_line.append(p_c + o_c) [cite: 53]
+            pipe_costs_line.append(p_c)
+            op_costs_line.append(o_c)
+            total_costs_line.append(p_c + o_c)
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=d_space*1000, y=pipe_costs_line, name="Pipe Cost/L (자재 설치비)", line=dict(dash='dash', color='#005088'))) [cite: 60]
-        fig.add_trace(go.Scatter(x=d_space*1000, y=op_costs_line, name="Operating Cost/L (동력 운영비)", line=dict(dash='dot', color='#ef4444'))) [cite: 60]
-        fig.add_trace(go.Scatter(x=d_space*1000, y=total_costs_line, name="Total Cost/L (총 연간 비용)", line=dict(width=3, color='#11caa0'))) [cite: 60]
+        fig.add_trace(go.Scatter(x=d_space*1000, y=pipe_costs_line, name="Pipe Cost/L (자재 설치비)", line=dict(dash='dash', color='#005088')))
+        fig.add_trace(go.Scatter(x=d_space*1000, y=op_costs_line, name="Operating Cost/L (동력 운영비)", line=dict(dash='dot', color='#ef4444')))
+        fig.add_trace(go.Scatter(x=d_space*1000, y=total_costs_line, name="Total Cost/L (총 연간 비용)", line=dict(width=3, color='#11caa0')))
         
-        # 이론적 최적 스타 마커
         fig.add_trace(go.Scatter(
             x=[d_opt_m*1000], 
             y=[(ann_a + ann_b) * (1 + cost_f) * c1_value * (d_opt_m**n_exponent) + (8 * f_opt * (m_dot**3) / (math.pi**2 * rho**2 * d_opt_m**5)) * (c2 / 1000) * t_year / eff_pump],
@@ -197,24 +192,24 @@ def run_economic_dia():
         ))
 
         fig.update_layout(
-            xaxis=dict(title="Pipe Inside Diameter (mm)", gridcolor="#e2e8f0"), [cite: 43]
-            yaxis=dict(title="Installed Cost / Length ($/yr·m)", range=[0, max(total_costs_line)*0.5], gridcolor="#e2e8f0"), [cite: 43]
+            xaxis=dict(title="Pipe Inside Diameter (mm)", gridcolor="#e2e8f0"),
+            yaxis=dict(title="Installed Cost / Length ($/yr·m)", range=[0, max(total_costs_line)*0.5], gridcolor="#e2e8f0"),
             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
             height=450, margin=dict(l=10, r=10, t=10, b=10), legend=dict(x=0.6, y=0.9)
         )
         st.plotly_chart(fig, use_container_width=True)
 
         # --- 화면 출력 3: 상용 추천 및 연간 비용 ---
-        st.subheader("📋 3. 상용 규격 권고 및 경제성 리포트 (Darby 예제 4.7 검증 완료) [cite: 36]")
+        st.subheader("📋 3. 상용 규격 권고 및 경제성 리포트 (Darby 예제 4.7 검증 완료)")
         res1, res2 = st.columns(2)
-        res1.info(f"**최종 추천 규격:** NPS {recommended_pipe['nps']} (Sch.{sel_sch})  \n- 실지름: {D_real*1000:.2f} mm  \n- 판단 기준: 상하위 관경별 실제 경제성 방정식 대입 및 변수 검증 완료 [cite: 12, 36, 71]")
+        res1.info(f"**최종 추천 규격:** NPS {recommended_pipe['nps']} (Sch.{sel_sch})  \n- 실제 안지름: {D_real*1000:.2f} mm  \n- 판단 기준: 상하위 관경별 실제 경제성 방정식 대입 및 변수 검증 완료")
         res2.metric("총 연간 비용 (TAC)", f"$ {tac:,.2f} /yr")
         
-        st.write("##### 🔍 인접 상용 규격별 연간 총비용 비교 검증 테이블") [cite: 36, 39]
+        st.write("##### 🔍 인접 상용 규격별 연간 총비용 비교 검증 테이블")
         comparison_data = {
-            "배관 규격 (NPS)": [f"NPS {p['nps']}" for p in candidate_pipes], [cite: 40]
-            "안지름 (mm)": [f"{p['id']*1000:.2f} mm" for p in candidate_pipes], [cite: 40]
-            "길이당 연간비용 ($/yr·m)": [f"$ {p['total_cost_per_l']:.2f}" for p in candidate_pipes], [cite: 25, 32]
+            "배관 규격 (NPS)": [f"NPS {p['nps']}" for p in candidate_pipes],
+            "안지름 (mm)": [f"{p['id']*1000:.2f} mm" for p in candidate_pipes],
+            "길이당 연간비용 ($/yr·m)": [f"$ {p['total_cost_per_l']:.2f}" for p in candidate_pipes],
             "연간 총 소요 비용 ($/yr)": [f"$ {p['total_cost_per_l']*L:,.2f}" for p in candidate_pipes]
         }
         st.table(comparison_data)
