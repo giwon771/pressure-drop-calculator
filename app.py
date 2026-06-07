@@ -46,7 +46,7 @@ elif project_mode == "🕸️ Hardy Cross 배관망 해석":
   
     
     # 교수님 피드백 핵심 요약 가이드라인 배치 (개발 방향성 리마인드용)
-    with st.expander("📌 교수님 피드백 및 개발 요구사항 (체크리스트)", expanded=True):
+    with st.expander("개발 요구사항 (체크리스트)", expanded=True):
         st.markdown("""
         1. **기본 가정 사항**
             - 노드별 높이 차이($z$) 없음, 부차 손실(Minor Loss) 무시
