@@ -391,7 +391,7 @@ def run_hardy_cross():
         if total_dp_loss < 50000:
             st.success(f"🎉 **설계 합격 (압력 최적화 달성):** 현재 전체 압력 손실치({total_dp_loss:,.1f} N/m²)가 경제적 안정 범위 내에 있습니다. 유체 마찰 저항이 효과적으로 억제되었습니다.")
         else:
-            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. 교수님이 강조하신 '전체 압력 저하'를 위해 직경(D)을 확장하는 설계 피드백을 권장합니다.")
+            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. '전체 압력 저하'를 위해 직경(D)을 확장하는 설계 피드백을 권장합니다.")
 
     high_vibration_pipes = [p for p in pipes if p.get_delta_p_per_km() >= 557.0]
     if high_vibration_pipes:
