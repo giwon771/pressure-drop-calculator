@@ -109,7 +109,7 @@ def run_economic_dia():
         n_valve = st.number_input("밸브 개수", min_value=0, value=0)
 
     # --- 6. 계산 및 결과 출력 ---
-    if st.button("🚀 설계 시뮬레이션 및 예제 4.7 교차 검증 실행", use_container_width=True):
+    if st.button("🚀 설계 시뮬레이션 ", use_container_width=True):
         # 단위 환산
         D_current = d_val/1000 if d_unit=="mm" else (d_val*0.0254 if d_unit=="inch" else d_val)
         L = l_val*1000 if l_unit=="km" else l_val
@@ -123,7 +123,7 @@ def run_economic_dia():
         # [단계 1] 이론적 D_opt 계산
         d_opt_m, f_opt, re_opt = solve_economic_diameter(rho, mu, m_dot, c1_value, c2, t_year, n_exponent, ann_a, ann_b, cost_f, eff_pump, 0.000046)
 
-        # [단계 2] 예제 4.7 실제 비용 비교식 기반 상용 규격 추천 (Trade-off 판정)
+        # [단계 2] 실제 비용 비교식 기반 상용 규격 추천 (Trade-off 판정)
         pipes_with_cost = []
         for p in p_db['pipe_standards']:
             if sel_sch in p['schedules']:
@@ -207,7 +207,7 @@ def run_economic_dia():
         st.plotly_chart(fig, use_container_width=True)
 
         # --- 화면 출력 3: 상용 추천 및 연간 비용 ---
-        st.subheader("📋 3. 상용 규격 권고 및 경제성 리포트 (Darby 예제 4.7 검증 완료)")
+        st.subheader("📋 3. 상용 규격 권고 및 경제성 리포트")
         res1, res2 = st.columns(2)
         res1.info(f"**최종 추천 규격:** NPS {recommended_pipe['nps']} (Sch.{sel_sch})  \n- 실제 안지름: {D_real*1000:.2f} mm  \n- 판단 기준: 상하위 관경별 실제 경제성 방정식 대입 및 변수 검증 완료")
         res2.metric("총 연간 비용 (TAC)", f"$ {tac:,.2f} /yr")
