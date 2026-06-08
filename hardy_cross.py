@@ -3,6 +3,7 @@ import math
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
+import json
 
 # --- 1. 파이프 객체 정의 ---
 class Pipe:
@@ -84,6 +85,10 @@ def run_dynamic_hardy_cross(pipes, loops_nodes, max_iter=30, tolerance=1e-5):
 
 # --- 3. Streamlit 실행 메인 함수 ---
 def run_hardy_cross():
+    # 💡 [교수님 피드백 연동 모듈] 대시보드 최상단에 국가 오픈 포맷 지리정보 업로더 배치
+    st.markdown("### 🌐 [공간 정보 연계] 지자체 광역 상수도 GIS 관망 데이터 매핑 엔진")
+    uploaded_gis = st.file_uploader("상수도 관망 GeoJSON 파일 업로드 (.json / .geojson)", type=["json", "geojson"])
+    
     if 'pipe_data' not in st.session_state:
         st.session_state.pipe_data = [
             {"id": 1, "start": "A", "end": "B", "L": 300.0, "D": 0.250, "init_q": 0.060, "sx": 300.0, "sy": 0.0, "ex": 0.0, "ey": 0.0},
@@ -94,6 +99,48 @@ def run_hardy_cross():
             {"id": 6, "start": "C", "end": "F", "L": 250.0, "D": 0.200, "init_q": 0.028, "sx": -300.0, "sy": 0.0, "ex": -300.0, "ey": 250.0},
             {"id": 7, "start": "F", "end": "E", "L": 300.0, "D": 0.150, "init_q": -0.035, "sx": -300.0, "sy": 250.0, "ex": 0.0, "ey": 250.0}
         ]
+
+    # 💡 파일이 업로드되면 표준 공간정보 규격을 역설계하여 노드 및 세션 상태에 즉시 피딩하는 실시간 변환 엔진
+    if uploaded_gis is not None:
+        try:
+            gis_bytes = uploaded_gis.read()
+            gis_data = json.loads(gis_bytes)
+            parsed_pipes = []
+            
+            for idx, feature in enumerate(gis_data.get("features", [])):
+                geometry = feature.get("geometry", {})
+                properties = feature.get("properties", {})
+                
+                if geometry.get("type") == "LineString":
+                    coords = geometry.get("coordinates", [])
+                    if len(coords) >= 2:
+                        # 위도/경도 지리정보 좌표 스케일을 로컬 그리드 2D 픽셀 좌표계로 자동 정렬
+                        sx, sy = coords[0][0] * 10000, coords[0][1] * 10000
+                        ex, ey = coords[-1][0] * 10000, coords[-1][1] * 10000
+                        
+                        # 지구 유클리드 기하 거리를 산출하여 배관의 실제 길이(L) 계산 및 맵 매핑
+                        dx = ex - sx
+                        dy = ey - sy
+                        calculated_L = math.sqrt(dx**2 + dy**2) * 0.1
+                        if calculated_L < 10: calculated_L = 200.0 
+                        
+                        p_start = str(properties.get("start_node", f"N_{idx}"))
+                        p_end = str(properties.get("end_node", f"N_{idx+1}"))
+                        p_D = float(properties.get("diameter", 0.200))
+                        
+                        parsed_pipes.append({
+                            "id": idx + 1, "start": p_start, "end": p_end, 
+                            "L": round(calculated_L, 1), "D": p_D, "init_q": 0.02,
+                            "sx": round(sx, 1), "sy": round(sy, 1), "ex": round(ex, 1), "ey": round(ey, 1)
+                        })
+            
+            if parsed_pipes:
+                st.session_state.pipe_data = parsed_pipes
+                st.success(f"🎉 **상수도 GIS 데이터 매핑 연동 성공:** {len(parsed_pipes)}개의 관로 정보가 수치해석 엔진에 동적 바인딩되었습니다.")
+            else:
+                st.error("GeoJSON 내에 해석 가능한 LineString 공간 지리 정보가 존재하지 않습니다.")
+        except Exception as e:
+            st.error(f"GIS 공간 정보 파일 해석 중 문법 오류가 발생했습니다: {str(e)}")
 
     temp_pos = {}
     for p in st.session_state.pipe_data:
@@ -219,20 +266,14 @@ def run_hardy_cross():
                 if p_item["ex"] >= p_item["sx"]: p_item["ex"] = p_item["sx"] + p_item["L"]
                 else: p_item["ex"] = p_item["sx"] - p_item["L"]
 
-        # --- 🗑️ [신규 기능 통합] 지정 배관 라인 타겟 개별 삭제 패널 ---
         with st.expander("❌ 불필요한 특정 배관라인 선택하여 제거하기", expanded=False):
-            # 현재 살아있는 파이프 ID 리스트 추출
             pipe_ids = [p["id"] for p in st.session_state.pipe_data]
             pipe_to_delete = st.selectbox("철거할 파이프 번호 선택", pipe_ids, format_func=lambda x: f"Pipe #{x}")
             
             if st.button("🚨 선택한 배관라인 즉시 철거", use_container_width=True):
-                # 선택한 ID 항목만 쏙 빼고 데이터 재구성
                 st.session_state.pipe_data = [p for p in st.session_state.pipe_data if p["id"] != pipe_to_delete]
-                
-                # ID 순번 꼬임 방지를 위한 1번부터 순차 재정렬 작업(Index Re-ordering)
                 for idx, p in enumerate(st.session_state.pipe_data):
                     p["id"] = idx + 1
-                    
                 st.toast(f"Pipe #{pipe_to_delete} 선로가 안전하게 철거되었습니다.")
                 st.rerun()
     
@@ -278,7 +319,6 @@ def run_hardy_cross():
 
     history = run_dynamic_hardy_cross(pipes, auto_loops)
 
-    # --- UI 레이아웃 화면 표시 ---
     col1, col2 = st.columns([3, 2])
     
     with col1:
@@ -304,6 +344,7 @@ def run_hardy_cross():
             k = (p.start, p.end) if p.Q >= 0 else (p.end, p.start)
             edge_labels[k] = f"#{p.id} ({p.L:.0f}m)\n{abs(p.Q):.3f}m³/s"
             
+        nx.draw_networkx_labels(G_draw, pos, font_size=11, font_weight='bold', ax=ax)
         nx.draw_networkx_edge_labels(G_draw, pos, edge_labels=edge_labels, font_size=8, font_color='red')
         
         ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
@@ -331,27 +372,27 @@ def run_hardy_cross():
         
         if head_loss_ratio >= 400000 and total_inflow < 0.15:
             series_name = "CR 시리즈 (Vertical Multistage)"
-            series_desc = "본 계통은 유량 대비 **마찰 손실 압력 강하가 매우 높은 고양정 환경**입니다. 따라서 컴팩트한 바닥 면적에서 임펠러를 수직 다단으로 배열하여 초고압 토출을 구현하는 그룬포스 **CR 시리즈**가 유체 기계학적으로 가장 최적입니다."
+            series_desc = "본 계통은 유량 대비 **마찰 손실 압력 강하가 매우 높은 고양정 환경**입니다. 따라서 그룬포스 **CR 시리즈**가 가장 최적입니다."
             pumps_list = [
-                {"search_name": "CR 15-3", "model": "Grundfos CR 15-3 A-A-A-E-HQQE (정격 고압 수직 다단형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"},
-                {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE (대유량 커버 수직 다단형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
+                {"search_name": "CR 15-3", "model": "Grundfos CR 15-3 A-A-A-E-HQQE (정격 고압 수직 다단형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외"},
+                {"search_name": "CR 45-2", "model": "Grundfos CR 45-2 A-F-A-E-HQQE (대유량 커버 수직 다단형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외"}
             ]
         elif total_inflow >= 0.25:
             series_name = "NK 시리즈 (Long-Coupled Volute)"
-            series_desc = "본 계통은 독립 루프망 전체를 관통하는 **순환 유량이 대규모인 계통**입니다. 따라서 모터와 펌프 축이 커플링으로 분리되어 연속 대유량 공정에서 기계적 진동·소음을 원천 차단하는 그룬포스 **NK 대형 볼류트 시리즈**를 강력하게 제안합니다."
+            series_desc = "본 계통은 독립 루프망 전체를 관통하는 **순환 유량이 대규모인 계통**입니다. 따라서 그룬포스 **NK 대형 볼류트 시리즈**를 강력하게 제안합니다."
             pumps_list = [
-                {"search_name": "NK 100-200", "model": "Grundfos NK 100-200/219 (산업용 대유량 장축 볼류트형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"},
-                {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304 (플랜트 메인 대용량 볼류트형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
+                {"search_name": "NK 100-200", "model": "Grundfos NK 100-200/219 (산업용 대유량 장축 볼류트형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외"},
+                {"search_name": "NK 150-315", "model": "Grundfos NK 150-315/304 (플랜트 메인 대용량 볼류트형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외"}
             ]
         else:
             series_name = "NB 시리즈 (End-Suction Standard)"
-            series_desc = "본 계통은 유량과 압력 강하비가 **가장 경제적인 평형 균형을 이루는 범용 계통**입니다. 따라서 전 세계 플랜트 표준으로 가장 널리 쓰이며 흡입구와 토출구가 직각을 이루어 유지보수 비용이 가장 저렴한 **NB 엔드석션 시리즈**가 최적입니다."
+            series_desc = "본 계통은 유량과 압력 강하비가 **가장 경제적인 평형 균형을 이루는 범용 계통**입니다. 따라서 **NB 엔드석션 시리즈**가 최적입니다."
             pumps_list = [
-                {"search_name": "NB 50-160", "model": "Grundfos NB 50-160/154 (표준 단단 엔드석션형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"},
-                {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 (대유량 고속 엔드석션형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외 | 60Hz 3상"}
+                {"search_name": "NB 50-160", "model": "Grundfos NB 50-160/154 (표준 단단 엔드석션형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외"},
+                {"search_name": "NB 80-160", "model": "Grundfos NB 80-160/177 (대유량 고속 엔드석션형)", "spec": f"추천 정격 동력: {required_power_kw*1.15:.1f} kW 내외"}
             ]
 
-        st.info(f"🧭 **계통 분석 진단 결과: {series_name} 매칭**")
+        st.info(f"💡 **계통 분석 진단 결과: {series_name} 매칭**")
         st.caption(series_desc)
         
         for idx, pump in enumerate(pumps_list):
@@ -373,7 +414,7 @@ def run_hardy_cross():
                 
                 catalog_url = "https://product-selection.grundfos.com/?lc=KOR"
                 st.link_button(
-                    f"⚙️ {pump['search_name']} 계열 카탈로그에서 세부 사양서 매칭하기", 
+                    f"⚙️ {pump['search_name']} 계열 사양서 매칭하기", 
                     catalog_url,
                     key=unique_key,
                     use_container_width=True
@@ -381,7 +422,7 @@ def run_hardy_cross():
 
     st.divider()
     
-    st.subheader("🧐 열유체 공학적 설계 종합 진단 소견 (진동/소음 예측)")
+    st.subheader("🧐 열유체 공학적 설계 종합 진단 소견 (진동/소음 및 예지 보전 예측)")
     avg_diameter = sum(p.D for p in pipes) / len(pipes)
     
     col_eval1, col_eval2 = st.columns(2)
@@ -389,23 +430,23 @@ def run_hardy_cross():
         st.metric("배관망 평균 관경 (Avg D)", f"{avg_diameter:.3f} m")
     with col_eval2:
         if total_dp_loss < 50000:
-            st.success(f"🎉 **설계 합격 (압력 최적화 달성):** 현재 전체 압력 손실치({total_dp_loss:,.1f} N/m²)가 경제적 안정 범위 내에 있습니다. 유체 마찰 저항이 효과적으로 억제되었습니다.")
+            st.success(f"🎉 **설계 합격 (압력 최적화 달성):** 현재 전체 압력 손실치({total_dp_loss:,.1f} N/m²)가 경제적 안정 범위 내에 있습니다.")
         else:
-            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. '전체 압력 저하'를 위해 직경(D)을 확장하는 설계 피드백을 권장합니다.")
+            st.warning(f"⚠️ **압력 저하 설계 보완 필요:** 관로 손실 압력이 {total_dp_loss:,.1f} N/m²로 다소 높습니다. 관경(D) 확장을 권장합니다.")
 
     high_vibration_pipes = [p for p in pipes if p.get_delta_p_per_km() >= 557.0]
     if high_vibration_pipes:
         bad_ids = ", ".join([f"Pipe #{p.id}" for p in high_vibration_pipes])
-        st.error(f"🚨 **배관 파괴 및 과도한 진동 경고:** 현재 계통 내 [{bad_ids}] 선로의 단위 압력 강하가 교재 소음 발생 기준치(557 kPa/km)를 초과했습니다! 장기 가동 시 허용 불가능한 공진 및 구조 결함이 예상되므로 관경 확장이 시급합니다.")
+        st.error(f"🚨 **배관 파괴 및 과도한 진동 경고:** 현재 계통 내 [{bad_ids}] 선로의 단위 압력 강하가 교재 소음 발생 기준치(557 kPa/km)를 초과했습니다!")
     else:
-        st.info("✅ **진동/소음 안전성 검증:** 모든 배관 선로의 1000m당 압력 손실이 기준치(557 kPa/km) 미만으로 유지되어 매우 정숙하고 안정적인 유동 거동이 보장됩니다.")
+        st.info("✅ **진동/소음 안전성 검증:** 모든 배관 선로의 1000m당 압력 손실이 기준치(557 kPa/km) 미만으로 정숙합니다.")
 
     st.write(" ")
     st.markdown("### 📝 [최종 설계 출력 사양서 (Specification Summary)]")
     spec_data = {
         "설계 항목 (Design Item)": [
             "배관망 설계 구조 (Geometry Layout)", 
-            "감지된 독립 루프개수 (Closed Loops)", 
+            "감지된 독립 루프 개수 (Closed Loops)", 
             "계통 평균 관경 (Average Pipe Size)", 
             "총 마찰 손실 압력 (Total Head Loss)", 
             "공학적 권장 추천 펌프 라인업 (Recommended Series)",
@@ -416,7 +457,7 @@ def run_hardy_cross():
             f"{len(auto_loops)}개 독립 폐회로 위상 제어",
             f"{avg_diameter*1000:.1f} mm (표준 스케일 실척 반영)",
             f"{total_dp_loss/1000:.2f} kPa",
-            f"Grundfos {series_name.split(' ')[0]} Line업 (수력 범위 매칭)",
+            f"Grundfos {series_name.split(' ')[0]} Line업",
             f"최소 모터 정격 {(required_power_kw*1.15):.2f} kW 사양 권장 (안전율 15% 가산)"
         ]
     }
