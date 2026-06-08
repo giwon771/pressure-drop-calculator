@@ -381,7 +381,7 @@ def run_hardy_cross():
 
     st.divider()
     
-    st.subheader("🧐 열유체 공학적 설계 종합 진단 소견 (진동/소음 및 캐비테이션 예측)")
+    st.subheader("🧐 열유체 공학적 설계 종합 진단 소견 (진동/소음 예측)")
     avg_diameter = sum(p.D for p in pipes) / len(pipes)
     
     col_eval1, col_eval2 = st.columns(2)
