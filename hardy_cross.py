@@ -85,10 +85,14 @@ def run_dynamic_hardy_cross(pipes, loops_nodes, max_iter=30, tolerance=1e-5):
 
 # --- 3. Streamlit 실행 메인 함수 ---
 def run_hardy_cross():
-    # 💡 [교수님 피드백 연동 모듈] 대시보드 최상단에 국가 오픈 포맷 지리정보 업로더 배치
+    st.markdown("## 🕸️ Hardy Cross 배관망 해석 및 최적 펌프 선정 시스템")
+    st.caption("다중 루프 배관망에서의 유량 배분, 압력 강하 시뮬레이션 및 민감도 기반 제어 노드 탐색")
+    st.write(" ")
+    
     st.markdown("### 🌐 [공간 정보 연계] 지자체 광역 상수도 GIS 관망 데이터 매핑 엔진")
     uploaded_gis = st.file_uploader("상수도 관망 GeoJSON 파일 업로드 (.json / .geojson)", type=["json", "geojson"])
-    
+    st.write(" ")
+
     if 'pipe_data' not in st.session_state:
         st.session_state.pipe_data = [
             {"id": 1, "start": "A", "end": "B", "L": 300.0, "D": 0.250, "init_q": 0.060, "sx": 300.0, "sy": 0.0, "ex": 0.0, "ey": 0.0},
@@ -100,7 +104,6 @@ def run_hardy_cross():
             {"id": 7, "start": "F", "end": "E", "L": 300.0, "D": 0.150, "init_q": -0.035, "sx": -300.0, "sy": 250.0, "ex": 0.0, "ey": 250.0}
         ]
 
-    # 💡 파일이 업로드되면 표준 공간정보 규격을 역설계하여 노드 및 세션 상태에 즉시 피딩하는 실시간 변환 엔진
     if uploaded_gis is not None:
         try:
             gis_bytes = uploaded_gis.read()
@@ -114,11 +117,9 @@ def run_hardy_cross():
                 if geometry.get("type") == "LineString":
                     coords = geometry.get("coordinates", [])
                     if len(coords) >= 2:
-                        # 위도/경도 지리정보 좌표 스케일을 로컬 그리드 2D 픽셀 좌표계로 자동 정렬
                         sx, sy = coords[0][0] * 10000, coords[0][1] * 10000
                         ex, ey = coords[-1][0] * 10000, coords[-1][1] * 10000
                         
-                        # 지구 유클리드 기하 거리를 산출하여 배관의 실제 길이(L) 계산 및 맵 매핑
                         dx = ex - sx
                         dy = ey - sy
                         calculated_L = math.sqrt(dx**2 + dy**2) * 0.1
@@ -136,11 +137,11 @@ def run_hardy_cross():
             
             if parsed_pipes:
                 st.session_state.pipe_data = parsed_pipes
-                st.success(f"🎉 **상수도 GIS 데이터 매핑 연동 성공:** {len(parsed_pipes)}개의 관로 정보가 수치해석 엔진에 동적 바인딩되었습니다.")
+                st.success(f"🎉 **상수도 GIS 데이터 매핑 연동 성공:** {len(parsed_pipes)}개의 관로 정보가 성공적으로 변환되었습니다.")
             else:
                 st.error("GeoJSON 내에 해석 가능한 LineString 공간 지리 정보가 존재하지 않습니다.")
         except Exception as e:
-            st.error(f"GIS 공간 정보 파일 해석 중 문법 오류가 발생했습니다: {str(e)}")
+            st.error(f"GIS 공간 정보 파일 해석 중 오류가 발생했습니다: {str(e)}")
 
     temp_pos = {}
     for p in st.session_state.pipe_data:
@@ -159,7 +160,7 @@ def run_hardy_cross():
     roughness_val = st.sidebar.number_input("관 절대 조도 (m)", value=0.00025, format="%.5f")
     pump_eff = st.sidebar.slider("펌프 효율 (η)", 0.5, 0.9, 0.75)
 
-    st.subheader("🕹️ 스마트 배관망 그래픽 배치 조립 판넬")
+    st.markdown("### 🕹️ 스마트 배관망 그래픽 배치 조립 판넬")
     
     with st.expander("📐 좌표 입력 없이 방향 선택으로 배관 쉽게 연장하기", expanded=False):
         if len(existing_nodes) == 0:
@@ -213,24 +214,32 @@ def run_hardy_cross():
             with col_ui2:
                 st.markdown("**3. 도달점 및 스펙 지정**")
                 p_end = st.text_input("도달 노드 이름 입력 (이미 있는 노드면 자동 스냅)", value="G").strip().upper()
-                p_L = st.number_input("배관 물리 길이 L (m)", min_value=1.0, value=200.0)
+                
+                # 💡 [핵심 최적화 로직] 입력된 p_end가 이미 존재하는 노드인지 실시간 체크
+                is_snap = p_end in temp_pos
+                
+                if is_snap:
+                    ex, ey = temp_pos[p_end]
+                    # 피타고라스 정리를 활용하여 도면상 두 물리적 노드 간 기하학적 실측 거리 자동 연산
+                    auto_L = math.sqrt((ex - sx)**2 + (ey - sy)**2)
+                    p_L = st.number_input("배관 물리 길이 L (m) [기존 노드 스냅 자동계산]", value=round(auto_L, 1), disabled=True)
+                else:
+                    p_L = st.number_input("배관 물리 길이 L (m)", min_value=1.0, value=200.0)
+
                 p_D = st.number_input("배관 직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
                 p_q = st.number_input("초기 가정 유량 (m³/s)", value=0.020, format="%.3f")
 
             if layout_mode == "직각 방향 가설":
-                if direction == "우측으로 연장 (+X)": ex, ey = sx + p_L, sy
-                elif direction == "좌측으로 연장 (-X)": ex, ey = sx - p_L, sy
-                elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + p_L
-                else: ex, ey = sx, sy - p_L
+                if not is_snap: # 기존 노드에 스냅되지 않은 신설 관로일 경우에만 길이 기준 좌표 계산
+                    if direction == "우측으로 연장 (+X)": ex, ey = sx + p_L, sy
+                    elif direction == "좌측으로 연장 (-X)": ex, ey = sx - p_L, sy
+                    elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + p_L
+                    else: ex, ey = sx, sy - p_L
             else:
-                rad = math.radians(angle)
-                ex = sx + p_L * math.cos(rad)
-                ey = sy + p_L * math.sin(rad)
-            
-            is_snap = False
-            if p_end in temp_pos:
-                ex, ey = temp_pos[p_end]
-                is_snap = True
+                if not is_snap: # 대각선 모드 역시 신설 관로일 경우에만 삼각함수 좌표 계산
+                    rad = math.radians(angle)
+                    ex = sx + p_L * math.cos(rad)
+                    ey = sy + p_L * math.sin(rad)
 
             if st.button("🛠️ 지정 방향으로 배관라인 즉시 가설", use_container_width=True):
                 if p_start == p_end:
