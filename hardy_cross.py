@@ -160,7 +160,7 @@ def run_hardy_cross():
     roughness_val = st.sidebar.number_input("관 절대 조도 (m)", value=0.00025, format="%.5f")
     pump_eff = st.sidebar.slider("펌프 효율 (η)", 0.5, 0.9, 0.75)
 
-    st.markdown("### 🕹️ 스마트 배관망 그래픽 배치 조립 판넬")
+    st.subheader("### 🕹️ 스마트 배관망 그래픽 배치 조립 판넬")
     
     with st.expander("📐 좌표 입력 없이 방향 선택으로 배관 쉽게 연장하기", expanded=False):
         if len(existing_nodes) == 0:
@@ -215,39 +215,42 @@ def run_hardy_cross():
                 st.markdown("**3. 도달점 및 스펙 지정**")
                 p_end = st.text_input("도달 노드 이름 입력 (이미 있는 노드면 자동 스냅)", value="G").strip().upper()
                 
-                # 💡 [핵심 최적화 로직] 입력된 p_end가 이미 존재하는 노드인지 실시간 체크
+                # 목적지 노드가 기존 노드에 스냅(is_snap)되는지 선밀도 스캔
                 is_snap = p_end in temp_pos
                 
                 if is_snap:
                     ex, ey = temp_pos[p_end]
-                    # 피타고라스 정리를 활용하여 도면상 두 물리적 노드 간 기하학적 실측 거리 자동 연산
                     auto_L = math.sqrt((ex - sx)**2 + (ey - sy)**2)
-                    p_L = st.number_input("배관 물리 길이 L (m) [기존 노드 스냅 자동계산]", value=round(auto_L, 1), disabled=True)
+                    p_L = st.number_input("배관 물리 길이 L (m) [기존 노드 스냅 자동계산]", value=round(auto_L, 1), disabled=True, key="snap_L_active")
                 else:
-                    p_L = st.number_input("배관 물리 길이 L (m)", min_value=1.0, value=200.0)
+                    p_L = st.number_input("배관 물리 길이 L (m)", min_value=1.0, value=200.0, key="normal_L_active")
 
                 p_D = st.number_input("배관 직경 D (m)", min_value=0.01, value=0.200, format="%.3f")
                 p_q = st.number_input("초기 가정 유량 (m³/s)", value=0.020, format="%.3f")
 
-            if layout_mode == "직각 방향 가설":
-                if not is_snap: # 기존 노드에 스냅되지 않은 신설 관로일 경우에만 길이 기준 좌표 계산
-                    if direction == "우측으로 연장 (+X)": ex, ey = sx + p_L, sy
-                    elif direction == "좌측으로 연장 (-X)": ex, ey = sx - p_L, sy
-                    elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + p_L
-                    else: ex, ey = sx, sy - p_L
-            else:
-                if not is_snap: # 대각선 모드 역시 신설 관로일 경우에만 삼각함수 좌표 계산
-                    rad = math.radians(angle)
-                    ex = sx + p_L * math.cos(rad)
-                    ey = sy + p_L * math.sin(rad)
-
+            # 💡 [버그 원천 차단 치트키] 가설 버튼 클릭 핸들러 내부에서 좌표 기반 최적화 최종 강제 재연산
             if st.button("🛠️ 지정 방향으로 배관라인 즉시 가설", use_container_width=True):
                 if p_start == p_end:
                     st.error("시작 노드와 끝 노드가 같으면 루프 연산이 불가합니다.")
                 else:
+                    # 버튼을 누르는 순간 도달지가 스냅 대상이면 백엔드 상에서 L값과 ex, ey를 좌표 기준으로 완전히 정정
+                    if p_end in temp_pos:
+                        ex, ey = temp_pos[p_end]
+                        p_L = math.sqrt((ex - sx)**2 + (ey - sy)**2)
+                    else:
+                        if layout_mode == "직각 방향 가설":
+                            if direction == "우측으로 연장 (+X)": ex, ey = sx + p_L, sy
+                            elif direction == "좌측으로 연장 (-X)": ex, ey = sx - p_L, sy
+                            elif direction == "위로 연장 (+Y)": ex, ey = sx, sy + p_L
+                            else: ex, ey = sx, sy - p_L
+                        else:
+                            rad = math.radians(angle)
+                            ex = sx + p_L * math.cos(rad)
+                            ey = sy + p_L * math.sin(rad)
+
                     new_id = len(st.session_state.pipe_data) + 1
                     st.session_state.pipe_data.append({
-                        "id": new_id, "start": p_start, "end": p_end, "L": p_L, "D": p_D, "init_q": p_q,
+                        "id": new_id, "start": p_start, "end": p_end, "L": round(p_L, 1), "D": p_D, "init_q": p_q,
                         "sx": sx, "sy": sy, "ex": ex, "ey": ey
                     })
                     st.rerun()
@@ -268,12 +271,17 @@ def run_hardy_cross():
             st.session_state.pipe_data[index]["init_q"] = float(row["init_q"])
             
             p_item = st.session_state.pipe_data[index]
-            if p_item["sx"] == p_item["ex"]: 
-                if p_item["ey"] >= p_item["sy"]: p_item["ey"] = p_item["sy"] + p_item["L"]
-                else: p_item["ey"] = p_item["sy"] - p_item["L"]
-            elif p_item["sy"] == p_item["ey"]: 
-                if p_item["ex"] >= p_item["sx"]: p_item["ex"] = p_item["sx"] + p_item["L"]
-                else: p_item["ex"] = p_item["sx"] - p_item["L"]
+            # 수동 테이블 강제 변경 시에만 직각 기하 연산 트랙 활성화
+            # 기존 스냅 관로 목록인 경우 수동 노드 비정합성 충돌 피하기
+            if (p_item["start"] in temp_pos) and (p_item["end"] in temp_pos) and (p_item["id"] == len(st.session_state.pipe_data) and is_snap):
+                pass 
+            else:
+                if p_item["sx"] == p_item["ex"]: 
+                    if p_item["ey"] >= p_item["sy"]: p_item["ey"] = p_item["sy"] + p_item["L"]
+                    else: p_item["ey"] = p_item["sy"] - p_item["L"]
+                elif p_item["sy"] == p_item["ey"]: 
+                    if p_item["ex"] >= p_item["sx"]: p_item["ex"] = p_item["sx"] + p_item["L"]
+                    else: p_item["ex"] = p_item["sx"] - p_item["L"]
 
         with st.expander("❌ 불필요한 특정 배관라인 선택하여 제거하기", expanded=False):
             pipe_ids = [p["id"] for p in st.session_state.pipe_data]
